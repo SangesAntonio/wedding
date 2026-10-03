@@ -34,20 +34,28 @@ export function useMatrimonio() {
 }
 
 /** Inviti + prenotazioni già uniti in famiglie, con aggiornamento in tempo reale. */
-export function useFamiglie() {
+/**
+ * Aggiornamento in tempo reale: UN solo collegamento per tutta l'area sposi (va chiamato una volta,
+ * in alto). Se ogni componente aprisse il suo, la libreria riuserebbe lo stesso canale e darebbe errore.
+ */
+export function useTempoReale() {
   const { data: m } = useMatrimonio();
   const qc = useQueryClient();
-  const id = m?.id ?? "";
-  const pren = useQuery({ queryKey: K.prenotazioni(id), queryFn: () => caricaPrenotazioni(id), enabled: !!m });
-  const inv = useQuery({ queryKey: K.inviti(id), queryFn: () => caricaInviti(id), enabled: !!m });
-
   useEffect(() => {
     if (!m) return;
     return ascoltaCambi(() => {
       qc.invalidateQueries({ queryKey: ["prenotazioni"] });
       qc.invalidateQueries({ queryKey: ["inviti"] });
+      qc.invalidateQueries({ queryKey: ["storico"] });
     });
   }, [m, qc]);
+}
+
+export function useFamiglie() {
+  const { data: m } = useMatrimonio();
+  const id = m?.id ?? "";
+  const pren = useQuery({ queryKey: K.prenotazioni(id), queryFn: () => caricaPrenotazioni(id), enabled: !!m });
+  const inv = useQuery({ queryKey: K.inviti(id), queryFn: () => caricaInviti(id), enabled: !!m });
 
   const famiglie = useMemo(() => (pren.data && inv.data ? costruisciFamiglie(inv.data, pren.data) : undefined), [pren.data, inv.data]);
   return {

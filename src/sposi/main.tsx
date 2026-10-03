@@ -7,7 +7,7 @@ import { Loader2, ShieldAlert } from "lucide-react";
 import "./tema";
 import "./app.css";
 import { Accesso } from "./Accesso";
-import { clientQuery, useMatrimonio } from "./query";
+import { clientQuery, useMatrimonio, useTempoReale } from "./query";
 import { AzioniUiProvider } from "./azioni-ui";
 import { ConfermaProvider } from "./components/Conferma";
 import { Shell } from "./components/Shell";
@@ -21,6 +21,7 @@ import { Button } from "./ui/button";
 
 function AreaSposi({ email, esci }: { email?: string; esci: () => void }) {
   const { data: matrimonio, isLoading, error } = useMatrimonio();
+  useTempoReale();
 
   if (isLoading)
     return (

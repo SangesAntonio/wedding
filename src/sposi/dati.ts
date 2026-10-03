@@ -109,7 +109,7 @@ export function ascoltaCambi(onCambio: () => void): () => void {
   const client = supabase;
   let t: ReturnType<typeof setTimeout> | undefined;
   const canale = client
-    .channel("area-sposi")
+    .channel("area-sposi-" + Math.random().toString(36).slice(2))
     .on("postgres_changes", { event: "*", schema: "public", table: "posti_occupati" }, () => {
       clearTimeout(t);
       t = setTimeout(onCambio, 600);

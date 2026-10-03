@@ -71,7 +71,7 @@ export function ascoltaOccupati(onCambio: () => void): () => void {
   if (!supabase) return () => {};
   const client = supabase;
   const canale = client
-    .channel("posti_occupati")
+    .channel("posti-occupati-" + Math.random().toString(36).slice(2))
     .on("postgres_changes", { event: "*", schema: "public", table: "posti_occupati" }, onCambio)
     .subscribe();
   return () => {
