@@ -76,6 +76,8 @@ Configurazione, una volta sola:
 
 Un account che fa login ma non è in `membri` vede "account non abilitato" e nessun dato.
 
+Tutti i dettagli (gestione account, password dimenticata, sicurezza, problemi comuni): [docs/LOGIN-SPOSI.md](docs/LOGIN-SPOSI.md).
+
 ## Ricevere un'email a ogni conferma
 
 **Via più semplice, con il vostro Gmail:** Google Apps Script. Niente Resend né password: seguite le istruzioni
