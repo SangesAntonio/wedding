@@ -4,7 +4,8 @@ import { telefonoLeggibile } from "../../lib/contatti";
 import { Button } from "@/sposi/ui/button";
 import { Finestra } from "./Pannello";
 import { useAzioni, useFamiglie, useMessaggio } from "../query";
-import { MESSAGGIO_PREDEFINITO, testoMessaggio, whatsappInvito, type Invito } from "../inviti";
+import { MESSAGGIO_PREDEFINITO, testoMessaggio, type Invito } from "../inviti";
+import { apriWhatsApp } from "../whatsapp";
 
 /** Un tocco per famiglia: si apre WhatsApp con il messaggio pronto, si torna e c'è già la successiva. */
 export function Sequenza({ aperto, scelti, onChiudi }: { aperto: boolean; scelti?: Invito[]; onChiudi: () => void }) {
@@ -40,7 +41,7 @@ export function Sequenza({ aperto, scelti, onChiudi }: { aperto: boolean; scelti
             </Button>
             <Button
               onClick={() => {
-                window.open(whatsappInvito(messaggio, i)!, "_blank", "noopener");
+                apriWhatsApp(i.telefono!, testoMessaggio(messaggio, i));
                 aggiornaInvito.mutate({ id: i.id, modifiche: { inviato_il: new Date().toISOString() } });
                 setInviati((x) => x + 1);
                 setTimeout(avanti, 350);

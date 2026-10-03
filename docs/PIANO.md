@@ -142,19 +142,20 @@ Tutto dentro il pannello di dettaglio della tabella.
 - [x] Aggiungi prenotazione a mano (chi conferma per telefono)
 - [x] Storico leggibile come linea del tempo ("3 ott · Famiglia Esposito ha confermato 4 persone", "5 ott · Voi: riconfermato")
 
-### Fase D — Gli invitati modificano la propria prenotazione *(ex Fase 4)*
-- [ ] Dal biglietto (link personale o codice): **Modifica** (persone, sedie, contatto, note) e **Annulla presenza**
-- [ ] Fino a **10 giorni prima**, controllato dal database; poi "per modifiche scriveteci" e modificano solo gli sposi
-- [ ] Funzioni SQL `modifica_prenotazione` e `annulla_prenotazione`, con storico automatico
-- [ ] Email agli sposi su modifica e annullamento ("Famiglia Esposito: da 4 a 3 persone")
+### Fase D — Gli invitati modificano la propria prenotazione *(ex Fase 4)* ✅
+- [x] Dal biglietto (link personale o codice): **Modifica** (persone, sedie, contatto, note) e **Annulla presenza**
+- [x] Fino a **10 giorni prima**, controllato dal database; poi "per modifiche scriveteci" e modificano solo gli sposi
+- [x] Funzioni SQL `modifica_prenotazione` e `annulla_prenotazione`, con storico automatico
+- [x] Email agli sposi su modifica e annullamento ("Famiglia Esposito: da 4 a 3 persone")
 
-### Fase E — Personalizzazione del matrimonio *(ex Fase 5)*
-- [ ] `matrimoni.config` validato con uno schema; l'invito lo legge dal database (con `config.ts` come riserva)
-- [ ] Pagina **Impostazioni** a sezioni: sposi e data · luogo (ricerca sulla mappa) · IBAN · testi dell'invito · messaggio WhatsApp · settori, prezzi e supplementi · posti sempre liberi · scadenza modifiche
-- [ ] Moduli con validazione e salvataggio sicuro; **anteprima dal vivo** dell'invito accanto al modulo
+### Fase E — Personalizzazione del matrimonio *(ex Fase 5)* ✅
+- [x] `matrimoni.config` validato con uno schema; l'invito lo legge dal database (con `config.ts` come riserva)
+- [x] Pagina **Impostazioni** a sezioni: sposi e data · luogo (ricerca sulla mappa) · IBAN · testi dell'invito · messaggio WhatsApp · settori, prezzi e supplementi · posti sempre liberi · scadenza modifiche
+- [x] Moduli con validazione e salvataggio sicuro; **anteprima dal vivo** dell'invito accanto al modulo
 - [ ] Tavoli e disposizione della sala: restano nel codice *(editor visuale = progetto a sé)*
 
 ### Fase F — Rifiniture e lancio *(ex Fase 6)*
+- [x] WhatsApp da computer: apertura diretta di WhatsApp Web (stessa scheda) o dell'app, scelta nelle Impostazioni
 - [ ] Immagine di anteprima per WhatsApp · IBAN vero · dominio vostro (+ URL in Supabase Auth)
 - [ ] Test automatici dei percorsi principali (Playwright): conferma da link personale, link generico, login sposi, import Excel
 - [ ] *(facoltativo)* Email di conferma all'invitato con il codice (serve un dominio verificato su Resend)

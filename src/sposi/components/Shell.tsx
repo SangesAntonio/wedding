@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router";
 import { ExternalLink, LayoutDashboard, LogOut, Moon, Plus, Search, Settings, Sun, Users } from "lucide-react";
-import { DATA_EVENTO, SPOSI } from "../../config";
+import { SPOSI } from "../../config";
 import { MODALITA_DEMO } from "../../lib/supabase";
 import { Button } from "@/sposi/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/sposi/ui/tooltip";
@@ -10,7 +10,7 @@ import { cn } from "@/sposi/lib/utils";
 import { useDesktop } from "../hooks/useMediaQuery";
 import { useTema } from "../tema";
 import { useAzioniUi } from "../azioni-ui";
-import { useFamiglie } from "../query";
+import { useDataEvento, useFamiglie } from "../query";
 import { totali } from "../famiglie";
 
 const VOCI = [
@@ -19,12 +19,13 @@ const VOCI = [
   { a: "/impostazioni", icona: Settings, testo: "Impostazioni" },
 ];
 
-const giorni = () => Math.max(0, Math.ceil((DATA_EVENTO.getTime() - Date.now()) / 864e5));
-const dataEvento = DATA_EVENTO.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
 const linkInvito = () => new URL("../", window.location.href).toString().split("#")[0];
 
 export function Shell({ email, esci, children }: { email?: string; esci: () => void; children: ReactNode }) {
   const desktop = useDesktop();
+  const data = useDataEvento();
+  const dataEvento = data.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  const giorni = () => Math.max(0, Math.ceil((data.getTime() - Date.now()) / 864e5));
   const { setCercaAperta, apri } = useAzioniUi();
   const { famiglie } = useFamiglie();
   const daVerificare = famiglie ? totali(famiglie).daVerificare : 0;

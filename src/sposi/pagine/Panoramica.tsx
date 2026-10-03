@@ -1,10 +1,9 @@
 import { Suspense, lazy, useMemo, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ArrowRight, Baby, CalendarHeart, Clock, Send, ShieldQuestion, TriangleAlert, UserPen, Users } from "lucide-react";
-import { DATA_EVENTO } from "../../config";
 import { Skeleton } from "@/sposi/ui/skeleton";
 import { cn } from "@/sposi/lib/utils";
-import { useFamiglie } from "../query";
+import { useDataEvento, useFamiglie } from "../query";
 import { useAzioniUi } from "../azioni-ui";
 import { totali, type Famiglia } from "../famiglie";
 import { dataRelativa } from "../dati";
@@ -12,7 +11,6 @@ import { StatoBadge } from "../components/Stato";
 
 const Grafico = lazy(() => import("../components/GraficoConferme"));
 
-const giorni = () => Math.max(0, Math.ceil((DATA_EVENTO.getTime() - Date.now()) / 864e5));
 const saluto = () => {
   const h = new Date().getHours();
   return h < 13 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
@@ -20,6 +18,8 @@ const saluto = () => {
 
 export function Panoramica() {
   const { famiglie, prenotazioni, caricamento } = useFamiglie();
+  const DATA_EVENTO = useDataEvento();
+  const giorni = () => Math.max(0, Math.ceil((DATA_EVENTO.getTime() - Date.now()) / 864e5));
   const t = useMemo(() => (famiglie ? totali(famiglie) : null), [famiglie]);
   const { mostraFamiglia } = useAzioniUi();
 

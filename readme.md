@@ -30,7 +30,7 @@ Quando l'IBAN è quello vero mettete `IBAN_DI_ESEMPIO = false`.
 
 1. Create un account su https://supabase.com e un nuovo progetto (regione: Frankfurt/EU).
 2. **SQL Editor → New query**: incollate tutto [supabase/schema.sql](supabase/schema.sql) e premete **Run**.
-   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql), [05](supabase/migrazione-05-data.sql), [06](supabase/migrazione-06-ospiti.sql).
+   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql), [05](supabase/migrazione-05-data.sql), [06](supabase/migrazione-06-ospiti.sql), [07](supabase/migrazione-07-modifiche-invitati.sql).
    Se il database era stato creato con la primissima versione, prima della 03 eseguite [migrazione-02-codice.sql](supabase/migrazione-02-codice.sql).
 3. **Project Settings → API**: copiate *Project URL* e la chiave *anon public*.
 4. Copiate `.env.example` in `.env` e incollate i due valori. Riavviate `npm run dev`.
@@ -60,7 +60,12 @@ componenti shadcn/ui (solo qui: l'invito degli ospiti ha il suo stile), tema chi
   annulla/ripristina, invito (WhatsApp, link), storico. Su telefono la lista è compatta e il dettaglio sale dal basso.
 - **Aggiungi**: nuovo invito, prenotazione a mano (chi risponde al telefono), Excel (modello + caricamento).
 - **Esporta**: Excel con il foglio *Ospiti* (una riga per persona, per famiglia) e il foglio *Famiglie*.
-- **Impostazioni**: messaggio WhatsApp con anteprima, link generico, tema, account.
+- **Impostazioni**: *Matrimonio* (sposi, data e ora, luogo con ricerca delle coordinate, IBAN, testi dell'invito,
+  settori e prezzi, supplementi, sconto, sedie sempre libere, giorni di blocco delle modifiche) con **anteprima dal vivo**;
+  *Messaggio e invio* (testo WhatsApp, apertura su computer: WhatsApp Web / app / chiedi, link generico); *Account e aspetto*.
+
+Gli invitati, dal biglietto (link personale o codice), possono **modificare** persone, nomi e posti o **annullare**
+la presenza fino a N giorni prima del matrimonio (impostabile); dopo, modificano solo gli sposi.
 - `Ctrl+K` (o la lente su telefono): cerca una famiglia o un'azione.
 
 Con `npm run demo` si apre su http://localhost:5174/sposi/ con ~50 famiglie finte, senza login.
@@ -103,7 +108,8 @@ Tutto dalla dashboard, senza terminale:
    Nelle impostazioni della funzione disattivate **Verify JWT** (la protegge la parola segreta del punto 3).
 3. **Segreti**: **Edge Functions → Secrets**, aggiungete
    `RESEND_API_KEY` (la chiave di Resend), `EMAIL_SPOSI` (la vostra email), `WEBHOOK_SECRET` (una parola segreta inventata).
-4. **Webhook**: **Database → Webhooks → Create a new hook**: tabella `prenotazioni`, evento **Insert**,
+4. **Webhook**: **Database → Webhooks → Create a new hook**: tabella `prenotazioni`, eventi **Insert** e **Update**
+   (Update serve per le email su modifiche e annullamenti degli invitati),
    tipo **Supabase Edge Functions**, funzione `notifica-prenotazione`; negli *HTTP Headers* aggiungete
    `x-webhook-secret` con la stessa parola segreta.
 

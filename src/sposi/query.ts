@@ -10,12 +10,16 @@ import {
   caricaPrenotazioni,
   caricaStorico,
   creaPrenotazione,
+  leggiConfig,
   messaggioErrore,
+  salvaConfig,
   type NuovaPrenotazioneSposi,
   type Prenotazione,
 } from "./dati";
 import { aggiornaInvito, caricaInviti, creaInviti, eliminaInvito, leggiMessaggio, salvaMessaggio, type Invito, type NuovoInvito } from "./inviti";
 import { costruisciFamiglie } from "./famiglie";
+import { applica, type ConfigMatrimonio } from "../lib/configMatrimonio";
+import { DATA_EVENTO } from "../config";
 
 export const clientQuery = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: true, retry: 1 } },
@@ -74,6 +78,17 @@ export function useMessaggio() {
   return useQuery({ queryKey: K.messaggio(m?.id ?? ""), queryFn: () => leggiMessaggio(m!.id), enabled: !!m });
 }
 
+export function useConfig() {
+  const { data: m } = useMatrimonio();
+  return useQuery({ queryKey: ["config", m?.id ?? ""], queryFn: () => leggiConfig(m!.id), enabled: !!m });
+}
+
+/** Data del matrimonio sempre aggiornata (anche subito dopo averla cambiata nelle impostazioni). */
+export function useDataEvento() {
+  const { data } = useConfig();
+  return data ? new Date(data.data_evento) : DATA_EVENTO;
+}
+
 export function useStorico(prenotazioneId: string | undefined) {
   return useQuery({ queryKey: K.storico(prenotazioneId ?? ""), queryFn: () => caricaStorico(prenotazioneId!), enabled: !!prenotazioneId });
 }
@@ -99,5 +114,14 @@ export function useAzioni() {
     aggiornaInvito: crea(({ id, modifiche }: { id: string; modifiche: Partial<Invito> }) => aggiornaInvito(id, modifiche)),
     eliminaInvito: crea((id: string) => eliminaInvito(id), "Invito eliminato"),
     salvaMessaggio: crea((t: string) => salvaMessaggio(m!.id, t), "Messaggio salvato"),
+    salvaConfig: useMutation({
+      mutationFn: (c: ConfigMatrimonio) => salvaConfig(m!.id, c),
+      onSuccess: (_r, c) => {
+        applica(c); // l'area sposi usa subito la data e i nomi nuovi
+        toast.success("Impostazioni salvate", { description: "L'invito le mostra da subito." });
+      },
+      onError: (e) => toast.error(messaggioErrore(e)),
+      onSettled: () => qc.invalidateQueries({ queryKey: ["config"] }),
+    }),
   };
 }

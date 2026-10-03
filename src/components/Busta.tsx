@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DATA_ROMANA, SPOSI } from "../config";
+import { SPOSI, dataRomana } from "../config";
 import { riduciMovimento, vibra } from "../lib/calendario";
 import { Filigrana, Stelle } from "./Ornamenti";
 
@@ -45,7 +45,7 @@ export function Busta({ onFine, destinatario }: { onFine: () => void; destinatar
           <p className="lettera-nomi">
             {SPOSI.lui} &amp; {SPOSI.lei}
           </p>
-          <p className="lettera-data">{DATA_ROMANA}</p>
+          <p className="lettera-data">{dataRomana()}</p>
         </div>
         <div className="busta-fronte" />
         <div className="busta-lembo" />

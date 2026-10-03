@@ -1,5 +1,4 @@
 import { supabase } from "../lib/supabase";
-import { linkWhatsApp } from "../lib/contatti";
 import { demo } from "./demo";
 
 export interface Invito {
@@ -85,5 +84,3 @@ export const linkInvito = (token: string) => new URL(`../?i=${token}`, window.lo
 export const testoMessaggio = (modello: string, invito: Pick<Invito, "nome" | "token">) =>
   modello.replace(/\{nome\}/g, invito.nome).replace(/\{link\}/g, linkInvito(invito.token));
 
-export const whatsappInvito = (modello: string, invito: Invito) =>
-  invito.telefono ? linkWhatsApp(invito.telefono, testoMessaggio(modello, invito)) : null;

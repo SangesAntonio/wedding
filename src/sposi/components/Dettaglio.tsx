@@ -15,7 +15,8 @@ import {
   TriangleAlert,
   UserX,
 } from "lucide-react";
-import { linkChiamata, linkEmail, linkWhatsApp, telefonoLeggibile } from "../../lib/contatti";
+import { linkChiamata, linkEmail, telefonoLeggibile } from "../../lib/contatti";
+import { apriWhatsApp } from "../whatsapp";
 import { Button } from "@/sposi/ui/button";
 import { Textarea } from "@/sposi/ui/textarea";
 import { Separator } from "@/sposi/ui/separator";
@@ -104,10 +105,8 @@ function Contenuto({ f }: { f: Famiglia }) {
                   <Phone /> {telefonoLeggibile(f.telefono)}
                 </a>
               </Button>
-              <Button variant="outline" size="sm" asChild>
-                <a href={linkWhatsApp(f.telefono)} target="_blank" rel="noopener">
-                  <MessageCircle /> Chat
-                </a>
+              <Button variant="outline" size="sm" onClick={() => apriWhatsApp(f.telefono!)}>
+                <MessageCircle /> Chat
               </Button>
             </>
           )}

@@ -58,7 +58,7 @@ function leggiDemo(): PrenotazioneSalvata[] {
 export async function caricaOccupati(): Promise<Occupati> {
   if (!supabase) {
     const finti = [...occupatiDemo()].map(([posto, nome]) => ({ posto, nome }));
-    const veri = leggiDemo().flatMap((p) => p.posti.map((posto) => ({ posto, nome: p.nome })));
+    const veri = leggiDemo().filter((p) => p.stato !== "annullata").flatMap((p) => p.posti.map((posto) => ({ posto, nome: p.nome })));
     return limita([...finti, ...veri]);
   }
   const { data, error } = await supabase.from("posti_occupati").select("posto, nome").order("creata_il", { ascending: true });
@@ -113,6 +113,48 @@ export async function salvaPrenotazione(p: NuovaPrenotazione): Promise<Prenotazi
   }
   const r = data as { id: string; codice: string };
   return { ...p, id: r.id, codice: r.codice, creataIl: new Date().toISOString() };
+}
+
+export class ModificheChiuse extends Error {
+  constructor() {
+    super("modifiche_chiuse");
+  }
+}
+
+/** L'invitato cambia la sua prenotazione (persone, nomi, sedie, note): solo fino alla scadenza. */
+export async function modificaPrenotazione(codice: string, p: NuovaPrenotazione): Promise<void> {
+  if (!supabase) {
+    const tutte = leggiDemo();
+    const i = tutte.findIndex((x) => x.codice === codice);
+    if (i < 0) throw new Error("prenotazione_sconosciuta");
+    tutte[i] = { ...tutte[i], ...p, invito: tutte[i].invito, stato: "confermata" } as PrenotazioneSalvata;
+    localStorage.setItem(CHIAVE_DEMO, JSON.stringify(tutte));
+    await new Promise((r) => setTimeout(r, 400));
+    return;
+  }
+  const { error } = await supabase.rpc("modifica_prenotazione", {
+    p_codice: codice,
+    p_nome: p.nome,
+    p_contatto: p.contatto || null,
+    p_note: p.note || null,
+    p_posti: p.posti,
+    p_ospiti: p.ospiti,
+    p_supplementi: p.supplementi,
+    p_totale: p.totale,
+  });
+  if (error) throw error.message.includes("modifiche_chiuse") ? new ModificheChiuse() : error;
+}
+
+/** L'invitato annulla la sua presenza: la prenotazione resta, con stato "annullata". */
+export async function annullaPrenotazione(codice: string): Promise<void> {
+  if (!supabase) {
+    const tutte = leggiDemo().map((x) => (x.codice === codice ? { ...x, stato: "annullata" as const } : x));
+    localStorage.setItem(CHIAVE_DEMO, JSON.stringify(tutte));
+    await new Promise((r) => setTimeout(r, 400));
+    return;
+  }
+  const { error } = await supabase.rpc("annulla_prenotazione", { p_codice: codice });
+  if (error) throw error.message.includes("modifiche_chiuse") ? new ModificheChiuse() : error;
 }
 
 export class InvitoGiaConfermato extends Error {

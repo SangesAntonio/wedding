@@ -1,7 +1,8 @@
 import { toast } from "sonner";
 import { useAzioni, useMessaggio } from "../query";
 import { useConferma } from "../components/Conferma";
-import { linkInvito, testoMessaggio, whatsappInvito, MESSAGGIO_PREDEFINITO, type Invito } from "../inviti";
+import { linkInvito, testoMessaggio, MESSAGGIO_PREDEFINITO, type Invito } from "../inviti";
+import { apriWhatsApp } from "../whatsapp";
 import type { Famiglia } from "../famiglie";
 import type { Prenotazione, Richiamo } from "../dati";
 
@@ -16,9 +17,8 @@ export function useAzioniFamiglia() {
   return {
     messaggio,
     whatsapp(i: Invito) {
-      const url = whatsappInvito(messaggio, i);
-      if (!url) return;
-      window.open(url, "_blank", "noopener");
+      if (!i.telefono) return;
+      apriWhatsApp(i.telefono, testoMessaggio(messaggio, i));
       segnaInviato(i);
     },
     async copiaLink(i: Invito) {

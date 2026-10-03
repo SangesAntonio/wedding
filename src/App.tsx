@@ -1,8 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Box, CalendarPlus, Check, Copy, KeyRound, LayoutGrid, Lock, MapPin, Navigation, User, X } from "lucide-react";
 import {
-  DATA_BREVE,
-  DATA_ESTESA,
   DATA_EVENTO,
   IBAN,
   IBAN_DI_ESEMPIO,
@@ -11,6 +9,11 @@ import {
   ORARIO,
   SCONTO_FAMIGLIA,
   SPOSI,
+  MODIFICHE_FINO,
+  TESTI,
+  dataBreve,
+  dataEstesa,
+  oraEvento,
 } from "./config";
 import {
   COLORI,
@@ -35,6 +38,9 @@ import {
   apriInvito,
   tokenDallUrl,
   InvitoGiaConfermato,
+  ModificheChiuse,
+  annullaPrenotazione,
+  modificaPrenotazione,
   type InvitoAperto,
   ricordaMiaPrenotazione,
   salvaPrenotazione,
@@ -43,6 +49,7 @@ import {
 } from "./lib/prenotazioni";
 import { scaricaEventoCalendario, vibra } from "./lib/calendario";
 import { Busta } from "./components/Busta";
+import { IN_ANTEPRIMA } from "./lib/anteprima";
 import { ElencoPosti } from "./components/ElencoPosti";
 import { Angolo, Filigrana, Foglia, Stelle, useNumeroAnimato } from "./components/Ornamenti";
 import type { AzioniSala } from "./components/Sala3D";
@@ -51,8 +58,6 @@ const Sala3D = lazy(() => import("./components/Sala3D"));
 const ComeArrivare = lazy(() => import("./components/ComeArrivare"));
 
 const PASSI = ["Invito", "Posti", "Nome", "Biglietti"];
-const SCONTO_PCT = Math.round(SCONTO_FAMIGLIA * 100);
-const PREZZI = ORDINE_SETTORI.map((k) => SETTORI[k].prezzo);
 
 function Passi({ step }: { step: number }) {
   return (
@@ -82,6 +87,9 @@ function CaricoSala() {
 }
 
 export default function App() {
+  // calcolati qui (non al caricamento del file): le impostazioni arrivano dal database prima del primo disegno
+  const SCONTO_PCT = Math.round(SCONTO_FAMIGLIA * 100);
+  const PREZZI = ORDINE_SETTORI.map((k) => SETTORI[k].prezzo);
   // prenotazione ricordata da questo browser (localStorage), ricontrollata sul database all'avvio
   const [salvata, setSalvata] = useState(leggiMiaPrenotazione);
   const [altroCodice, setAltroCodice] = useState(false);
@@ -96,6 +104,9 @@ export default function App() {
   // nome di ogni ospite, per posto
   const [ospiti, setOspiti] = useState<Record<string, Ospite>>({});
   const [erroreOspiti, setErroreOspiti] = useState(false);
+  // l'invitato sta modificando una prenotazione già fatta (Fase D)
+  const [originale, setOriginale] = useState<PrenotazioneSalvata | null>(null);
+  const [chiediAnnullo, setChiediAnnullo] = useState(false);
   const [avviso, setAvviso] = useState("");
   const [vista, setVista] = useState<"3d" | "elenco">("3d");
   const [quanti, setQuanti] = useState(2);
@@ -144,7 +155,7 @@ export default function App() {
     if (!ricordata) return;
     cercaPrenotazione(ricordata.codice)
       .then((p) => {
-        if (p && p.stato !== "annullata") {
+        if (p) {
           ricordaMiaPrenotazione(p);
           setSalvata(p);
         } else {
@@ -182,19 +193,29 @@ export default function App() {
     };
   }, [aggiornaOccupati]);
 
+  // durante una modifica le sedie della propria prenotazione risultano libere
+  const occupatiVisibili = useMemo(() => {
+    if (!originale) return occupati;
+    const m = new Map(occupati);
+    originale.posti.forEach((id) => m.delete(id));
+    return m;
+  }, [occupati, originale]);
+
   // se qualcun altro prende un posto che avevo scelto, lo tolgo
   useEffect(() => {
     if (confermata) return;
     setSelezione((sel) => {
-      const persi = sel.filter((p) => occupati.has(p.id));
+      const persi = sel.filter((p) => occupatiVisibili.has(p.id));
       if (!persi.length) return sel;
       setAvviso(`Qualcuno è stato più veloce: ${persi.map((p) => `${p.tav}-${p.num}`).join(", ")} non è più libero.`);
-      return sel.filter((p) => !occupati.has(p.id));
+      return sel.filter((p) => !occupatiVisibili.has(p.id));
     });
-  }, [occupati, confermata]);
+  }, [occupatiVisibili, confermata]);
 
   const giorni = Math.max(0, Math.ceil((DATA_EVENTO.getTime() - Date.now()) / 864e5));
   const liberi = POSTI_PRENOTABILI - occupati.size;
+  const modificheAperte = !MODIFICHE_FINO || Date.now() < MODIFICHE_FINO.getTime();
+  const fineModifiche = MODIFICHE_FINO?.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
   const prezzati = useMemo(() => prezza(selezione), [selezione]);
   const subtotale = prezzati.reduce((s, p) => s + p.scontato, 0);
   const extra = SUPPLEMENTI.filter((s) => supplementi.includes(s.id)).reduce((s, x) => s + x.p, 0);
@@ -235,7 +256,7 @@ export default function App() {
   }, []);
 
   const trovateVoi = () => {
-    const r = trovaPostiVicini(occupati, quanti);
+    const r = trovaPostiVicini(occupatiVisibili, quanti);
     if (!r) {
       setAvviso(`Non c'è un tavolo con ${quanti} posti liberi affiancati. Provate con un numero più basso.`);
       return;
@@ -265,11 +286,27 @@ export default function App() {
         return;
       }
     }
+    if (step === 1) {
+      // i nomi già scritti seguono le persone anche se hanno cambiato sedia
+      setOspiti((o) => {
+        const ids = selezione.map((p) => p.id);
+        const avanzati = Object.entries(o).filter(([id, v]) => !ids.includes(id) && v.nome.trim()).map(([, v]) => v);
+        const nuovo: Record<string, Ospite> = {};
+        ids.forEach((id) => {
+          const v = o[id]?.nome.trim() ? o[id] : avanzati.shift();
+          if (v) nuovo[id] = v;
+        });
+        return nuovo;
+      });
+    }
     setErroreNome("");
     setErroreOspiti(false);
     vaiA(Math.min(3, step + 1));
   };
-  const indietro = () => vaiA(Math.max(0, step - 1));
+  const indietro = () => {
+    if (originale && step === 1) annullaModifica();
+    else vaiA(Math.max(0, step - 1));
+  };
 
   const copiaIban = () => {
     navigator.clipboard?.writeText(IBAN.replace(/\s/g, "")).catch(() => {});
@@ -279,6 +316,11 @@ export default function App() {
 
   const conferma = async () => {
     if (invio || confermata) return;
+    if (IN_ANTEPRIMA) {
+      setAvviso("Anteprima: le conferme non vengono salvate.");
+      return;
+    }
+    if (originale) return salvaModifiche();
     setInvio(true);
     try {
       const p = await salvaPrenotazione({
@@ -305,6 +347,70 @@ export default function App() {
       } else {
         setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
       }
+    } finally {
+      setInvio(false);
+    }
+  };
+
+  const datiAttuali = () => ({
+    nome: nome.trim(),
+    contatto: contatto.trim(),
+    note: note.trim(),
+    posti: selezione.map((s) => s.id),
+    ospiti: selezione.map((s) => ({ nome: nomeOspite(s.id), bambino: !!ospiti[s.id]?.bambino })),
+    supplementi,
+    totale,
+  });
+
+  const salvaModifiche = async () => {
+    if (!originale) return;
+    setInvio(true);
+    try {
+      const dati = datiAttuali();
+      await modificaPrenotazione(originale.codice, dati);
+      const agg: PrenotazioneSalvata = { ...originale, ...dati, stato: originale.stato === "da_verificare" ? "da_verificare" : "confermata" };
+      vibra([10, 40, 10]);
+      ricordaMiaPrenotazione(agg);
+      setSalvata(agg);
+      setConfermata(agg);
+      setOriginale(null);
+      setAvviso("Modifiche salvate. Grazie!");
+      aggiornaOccupati();
+    } catch (e) {
+      setAvviso(e instanceof ModificheChiuse ? `Le modifiche si sono chiuse il ${fineModifiche}: scriveteci e sistemiamo noi.` : "Non sono riuscito a salvare le modifiche. Riprovate.");
+    } finally {
+      setInvio(false);
+    }
+  };
+
+  const iniziaModifica = () => {
+    if (!confermata) return;
+    setOriginale(confermata);
+    setConfermata(null);
+    setChiediAnnullo(false);
+    vaiA(1);
+  };
+
+  const annullaModifica = () => {
+    const o = originale;
+    setOriginale(null);
+    if (o) apriPrenotazione(o);
+  };
+
+  const annullaPresenza = async () => {
+    if (!confermata || invio) return;
+    setInvio(true);
+    try {
+      await annullaPrenotazione(confermata.codice);
+      const agg: PrenotazioneSalvata = { ...confermata, stato: "annullata" };
+      ricordaMiaPrenotazione(agg);
+      setSalvata(agg);
+      setConfermata(agg);
+      setChiediAnnullo(false);
+      aggiornaOccupati();
+      setAvviso("Presenza annullata. Ci mancherete!");
+    } catch (e) {
+      setAvviso(e instanceof ModificheChiuse ? `Le modifiche si sono chiuse il ${fineModifiche}: scriveteci.` : "Non sono riuscito ad annullare. Riprovate.");
     } finally {
       setInvio(false);
     }
@@ -370,6 +476,7 @@ export default function App() {
     );
 
   const bloccata = !!confermata;
+  const annullata = confermata?.stato === "annullata";
   const mia = confermata ?? salvata;
   const s0 = prezzati[0] ? SETTORI[prezzati[0].set] : SETTORI.centro;
 
@@ -380,7 +487,7 @@ export default function App() {
       <header className="barra-alta">
         <div className={"contenitore barra-alta-in" + (step === 1 ? " largo" : "")}>
           <span className="marchio">
-            <Foglia size={13} color={COLORI.oro} /> {SPOSI.iniziali.replace("&", " & ")} · {DATA_BREVE}
+            <Foglia size={13} color={COLORI.oro} /> {SPOSI.iniziali.replace("&", " & ")} · {dataBreve()}
           </span>
           <Passi step={step} />
         </div>
@@ -388,6 +495,16 @@ export default function App() {
 
       <main className={"contenitore corpo" + (step === 1 ? " largo" : "")}>
         <div className="anim-entra" key={step}>
+          {originale && step > 0 && (
+            <div className="banda-modifica">
+              <span>
+                State modificando la prenotazione <b>{originale.codice}</b>
+              </span>
+              <button className="link" onClick={annullaModifica}>
+                Lascia com'era
+              </button>
+            </div>
+          )}
           {step === 0 && (
             <>
               <section className="card manifesto">
@@ -398,7 +515,7 @@ export default function App() {
                 <Stelle n={18} />
                 <div className="manifesto-in">
                   {invito && <p className="saluto">Ciao {invito.nome}</p>}
-                  <p className="occhiello">Unica replica</p>
+                  <p className="occhiello">{TESTI.occhiello}</p>
                   <Filigrana w={230} />
                   <h1 className="nomi">
                     {SPOSI.lui}
@@ -411,9 +528,9 @@ export default function App() {
                     <Foglia size={13} color={COLORI.oro} />
                     <span />
                   </div>
-                  <p className="data">{DATA_ESTESA}</p>
+                  <p className="data">{dataEstesa()}</p>
                   <p className="sotto-data">{ORARIO}</p>
-                  <p className="claim">Acquistate il vostro biglietto per l'evento che difficilmente ricorderete.</p>
+                  <p className="claim">{TESTI.claim}</p>
                   <div className="listino">
                     {ORDINE_SETTORI.slice()
                       .reverse()
@@ -448,7 +565,7 @@ export default function App() {
                     <Check size={15} color={COLORI.carta} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="t">Avete già confermato, {mia.nome}</p>
+                    <p className="t">{mia.stato === "annullata" ? `Avete annullato la presenza, ${mia.nome}` : `Avete già confermato, ${mia.nome}`}</p>
                     <p className="d">
                       {mia.posti.length === 1 ? "1 persona" : `${mia.posti.length} persone`} · codice {mia.codice}
                     </p>
@@ -566,10 +683,10 @@ export default function App() {
                 </p>
                 {vista === "3d" ? (
                   <Suspense fallback={<CaricoSala />}>
-                    <Sala3D occupati={occupati} selezione={selezione} onToggle={toggle} onAvviso={setAvviso} azioni={azioniSala} />
+                    <Sala3D occupati={occupatiVisibili} selezione={selezione} onToggle={toggle} onAvviso={setAvviso} azioni={azioniSala} />
                   </Suspense>
                 ) : (
-                  <ElencoPosti occupati={occupati} selezione={selezione} onToggle={toggle} onAvviso={setAvviso} />
+                  <ElencoPosti occupati={occupatiVisibili} selezione={selezione} onToggle={toggle} onAvviso={setAvviso} />
                 )}
               </div>
 
@@ -769,7 +886,7 @@ export default function App() {
               <div className={"card biglietto" + (bloccata ? " timbrato" : "")}>
                 <Angolo pos="tl" />
                 <Angolo pos="tr" />
-                {bloccata && <div className="timbro">Confermato</div>}
+                {bloccata && <div className={"timbro" + (annullata ? " timbro-annullato" : "")}>{annullata ? "Annullato" : "Confermato"}</div>}
                 <div className="big-testa" style={{ background: s0.soft }}>
                   <div className="sigillo">
                     <span>{SPOSI.iniziali}</span>
@@ -781,7 +898,7 @@ export default function App() {
                     {SPOSI.lui} &amp; {SPOSI.lei}
                   </p>
                   <p className="d">
-                    {DATA_ESTESA} · ore {DATA_EVENTO.getHours()}:{String(DATA_EVENTO.getMinutes()).padStart(2, "0")}
+                    {dataEstesa()} · ore {oraEvento()}
                   </p>
                   <p className="d">{LUOGO.nome} · {LUOGO.citta}</p>
                 </div>
@@ -886,22 +1003,33 @@ export default function App() {
                   <span className="etichetta">Importo</span>
                   <span className="totale-v">{totale} €</span>
                 </div>
-                <div className="banda-oro">Poi, tra noi: potete pagare quello che volete. Anche zero. Dopotutto vi vogliamo ancora bene.</div>
+                <div className="banda-oro">{TESTI.nota_pagamento}</div>
                 <p className="aiuto">
-                  Se preferite il contante, la busta si consegna all'ingresso come vuole la tradizione. Il biglietto non dà diritto a rimborso, ma dà diritto a due primi, un secondo, il dolce e almeno un ballo lento.
+                  {TESTI.nota_contanti}
                 </p>
                 <button onClick={conferma} disabled={invio || bloccata} className={"btn btn-largo " + (bloccata ? "btn-ok" : "btn-scuro")} aria-live="polite">
                   {bloccata ? (
-                    <>
-                      <Check size={16} /> Presenza confermata — ci vediamo il {DATA_EVENTO.toLocaleDateString("it-IT", { day: "numeric", month: "long" })}
-                    </>
+                    annullata ? (
+                      "Presenza annullata"
+                    ) : (
+                      <>
+                        <Check size={16} /> Presenza confermata — ci vediamo il {DATA_EVENTO.toLocaleDateString("it-IT", { day: "numeric", month: "long" })}
+                      </>
+                    )
                   ) : invio ? (
-                    "Sto confermando…"
+                    originale ? "Salvo le modifiche…" : "Sto confermando…"
+                  ) : originale ? (
+                    "Salva le modifiche"
                   ) : (
                     "Confermiamo la nostra presenza"
                   )}
                 </button>
-                {bloccata && (
+                {originale && !bloccata && (
+                  <button className="btn btn-chiaro btn-largo btn-secondo" onClick={annullaModifica} disabled={invio}>
+                    Lascia tutto com'era
+                  </button>
+                )}
+                {bloccata && !annullata && (
                   <div className="dove-azioni dopo-conferma anim-entra">
                     <button className="btn btn-chiaro" onClick={() => setMappa(true)}>
                       <Navigation size={15} /> Come arrivare
@@ -911,7 +1039,55 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                {bloccata && <p className="aiuto">Per cambiare posti o persone scriveteci pure: sistemiamo noi.</p>}
+                {bloccata && (
+                  <div className="modifiche anim-entra">
+                    {annullata ? (
+                      <>
+                        <p className="t">Avete annullato la vostra presenza.</p>
+                        {modificheAperte ? (
+                          <>
+                            <p className="d">Se cambiate idea, potete confermare di nuovo fino al {fineModifiche}.</p>
+                            <button className="btn btn-scuro" onClick={iniziaModifica}>
+                              Abbiamo cambiato idea
+                            </button>
+                          </>
+                        ) : (
+                          <p className="d">Per qualsiasi cosa scriveteci: sistemiamo noi.</p>
+                        )}
+                      </>
+                    ) : modificheAperte ? (
+                      chiediAnnullo ? (
+                        <>
+                          <p className="t">Sicuri di non poter venire?</p>
+                          <p className="d">La prenotazione viene annullata, ma potete ripensarci fino al {fineModifiche}.</p>
+                          <div className="modifiche-azioni">
+                            <button className="btn btn-chiaro" onClick={() => setChiediAnnullo(false)} disabled={invio}>
+                              No, veniamo
+                            </button>
+                            <button className="btn btn-rosso" onClick={annullaPresenza} disabled={invio}>
+                              {invio ? "Annullo…" : "Sì, annulla"}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="t">Qualcosa è cambiato?</p>
+                          <p className="d">Potete aggiungere o togliere persone, cambiare nomi e posti fino al {fineModifiche}.</p>
+                          <div className="modifiche-azioni">
+                            <button className="btn btn-chiaro" onClick={iniziaModifica}>
+                              Modifica
+                            </button>
+                            <button className="btn btn-chiaro btn-testo-rosso" onClick={() => setChiediAnnullo(true)}>
+                              Non possiamo più venire
+                            </button>
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      <p className="d">Le modifiche si sono chiuse il {fineModifiche}: per cambiare qualcosa scriveteci, sistemiamo noi.</p>
+                    )}
+                  </div>
+                )}
               </div>
               {(MODALITA_DEMO || IBAN_DI_ESEMPIO) && (
                 <p className="piedino">

@@ -443,3 +443,16 @@ button:focus:not(:focus-visible){outline:none}
   background:transparent; font-size:11.5px; color:var(--soft); cursor:pointer}
 .chip-bimbo.on{background:#E6F2F8; border-color:#BBDCEB; color:#2F7FA6}
 .bimbo{display:inline-block; margin-left:6px; font-style:normal; font-size:10px; letter-spacing:.06em; padding:1px 6px; border-radius:999px; background:#E6F2F8; color:#2F7FA6}
+
+/* ================================================= modifiche dell'invitato */
+.modifiche{margin-top:16px; padding:14px 15px; border-radius:16px; border:1px solid var(--linea); background:#FBF9F2}
+.modifiche .t{margin:0; font-size:14px; font-weight:500}
+.modifiche .d{margin:4px 0 0; font-size:12.5px; line-height:1.5; color:var(--soft)}
+.modifiche .btn{margin-top:12px}
+.modifiche-azioni{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.btn-rosso{background:#B5462F; color:#fff; box-shadow:0 8px 20px -12px rgba(181,70,47,.8)}
+.btn-testo-rosso{color:#B5462F}
+.btn-secondo{margin-top:8px}
+.timbro-annullato{background:#8B8B85}
+.banda-modifica{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 14px; padding:10px 14px; border-radius:14px; background:#F8F0DC; border:1px solid #E7D8AE; color:#6E5A22; font-size:12.5px}
+.banda-modifica .link{color:#6E5A22; flex:none}

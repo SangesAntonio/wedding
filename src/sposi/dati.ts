@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabase";
 import { POSTI_PER_ID, SETTORI, SUPPLEMENTI } from "../data/sala";
 import type { Ospite } from "../lib/prenotazioni";
 import { demo } from "./demo";
+import { CHIAVE_DEMO_CONFIG, unisci, type ConfigMatrimonio } from "../lib/configMatrimonio";
 
 export type { Ospite };
 export type Stato = "confermata" | "da_verificare" | "annullata";
@@ -101,6 +102,34 @@ export async function caricaStorico(prenotazioneId: string): Promise<VoceStorico
     .limit(50);
   if (error) throw error;
   return (data ?? []) as VoceStorico[];
+}
+
+/** Le impostazioni del matrimonio (complete, con i valori predefiniti dove mancano). */
+export async function leggiConfig(matrimonioId: string): Promise<ConfigMatrimonio> {
+  if (!supabase) {
+    try {
+      return unisci(JSON.parse(localStorage.getItem(CHIAVE_DEMO_CONFIG) || "null"));
+    } catch {
+      return unisci(null);
+    }
+  }
+  const { data, error } = await supabase.from("matrimoni").select("config").eq("id", matrimonioId).single();
+  if (error) throw error;
+  return unisci(data?.config);
+}
+
+/** Salva le impostazioni senza toccare le altre chiavi già presenti (es. il messaggio WhatsApp). */
+export async function salvaConfig(matrimonioId: string, c: ConfigMatrimonio): Promise<void> {
+  const { messaggio_invito: _m, ...nuova } = c;
+  if (!supabase) {
+    const prima = JSON.parse(localStorage.getItem(CHIAVE_DEMO_CONFIG) || "{}");
+    localStorage.setItem(CHIAVE_DEMO_CONFIG, JSON.stringify({ ...prima, ...nuova }));
+    return;
+  }
+  const { data, error } = await supabase.from("matrimoni").select("config").eq("id", matrimonioId).single();
+  if (error) throw error;
+  const { error: e2 } = await supabase.from("matrimoni").update({ config: { ...(data?.config ?? {}), ...nuova } }).eq("id", matrimonioId);
+  if (e2) throw e2;
 }
 
 /** Richiama `onCambio` quando cambia qualcosa (nuove conferme, annullamenti). */
