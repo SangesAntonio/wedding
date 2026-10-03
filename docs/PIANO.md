@@ -73,25 +73,25 @@ storico        id · prenotazione_id · chi('invitato' | 'sposi') · cosa · pri
 
 ## Fasi
 
-### Fase 1 — Fondamenta del database
+### Fase 1 — Fondamenta del database ✅
 Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli invitati. Provata in locale su Postgres (PGlite).
 
-- [ ] Tabelle `matrimoni`, `membri` e `inviti`; `matrimonio_id` su prenotazioni e posti (riempito con l'unico matrimonio)
-- [ ] Colonne `stato`, `richiamo`, `richiamo_il`, `nota_sposi`, `modificata_il`; tabella `storico`
-- [ ] Funzione `e_sposo(matrimonio_id)` e regole RLS: i membri leggono e modificano solo il proprio matrimonio
-- [ ] Le funzioni `prenota` e `cerca_prenotazione` restano compatibili (il sito attuale continua a funzionare)
-- [ ] Le prenotazioni annullate non occupano sedie e non compaiono nel conteggio
-- [ ] Data del matrimonio e `giorni_blocco_modifiche = 10` in `matrimoni.config`, usati dalle funzioni SQL
+- [x] Tabelle `matrimoni`, `membri` e `inviti`; `matrimonio_id` su prenotazioni e posti (riempito con l'unico matrimonio)
+- [x] Colonne `stato`, `richiamo`, `richiamo_il`, `nota_sposi`, `modificata_il`; tabella `storico`
+- [x] Funzione `e_sposo(matrimonio_id)` e regole RLS: i membri leggono e modificano solo il proprio matrimonio
+- [x] Le funzioni `prenota` e `cerca_prenotazione` restano compatibili (il sito attuale continua a funzionare)
+- [x] Le prenotazioni annullate non occupano sedie e non compaiono nel conteggio
+- [x] Data del matrimonio e `giorni_blocco_modifiche = 10` in `matrimoni.config`, usati dalle funzioni SQL
 
-### Fase 2 — Area sposi: login ed elenco
-- [ ] Pagina `/sposi/` con login (email + password) e logout; password dimenticata
-- [ ] "Accedi con Google" (client OAuth nella Google Cloud Console + provider in Supabase)
-- [ ] Account vostri creati dalla dashboard; iscrizioni pubbliche disattivate
-- [ ] Riepilogo in alto: famiglie, persone confermate, annullate, da risentire
-- [ ] Elenco con ricerca e filtri (stato, richiamo); a ogni riga nome, persone, posti, contatto, note, codice, data
-- [ ] Contatto cliccabile: chiama, WhatsApp (`wa.me`), email
-- [ ] Esporta CSV (per catering, tableau, segnaposti)
-- [ ] Aggiornamento in tempo reale quando arriva una conferma
+### Fase 2 — Area sposi: login ed elenco ✅ *(Google rimandato)*
+- [x] Pagina `/sposi/` con login (email + password) e logout; password dimenticata
+- [ ] *(rimandato)* "Accedi con Google" (client OAuth nella Google Cloud Console + provider in Supabase)
+- [x] Account vostri creati dalla dashboard; iscrizioni pubbliche disattivate
+- [x] Riepilogo in alto: famiglie, persone confermate, annullate, da risentire
+- [x] Elenco con ricerca e filtri (stato, richiamo); a ogni riga nome, persone, posti, contatto, note, codice, data
+- [x] Contatto cliccabile: chiama, WhatsApp (`wa.me`), email
+- [x] Esporta CSV (per catering, tableau, segnaposti)
+- [x] Aggiornamento in tempo reale quando arriva una conferma
 
 ### Fase 2b — Lista invitati e link personali
 *Da fare prima di mandare l'invito.*

@@ -1,12 +1,8 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { POSTI_SEMPRE_LIBERI } from "../config";
 import { POSTI_PRENOTABILI, occupatiDemo, type Occupati } from "../data/sala";
+import { MODALITA_DEMO, supabase } from "./supabase";
 
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-export const supabase: SupabaseClient | null = SUPA_URL && SUPA_KEY ? createClient(SUPA_URL, SUPA_KEY) : null;
-export const MODALITA_DEMO = !supabase;
+export { MODALITA_DEMO };
 
 export interface NuovaPrenotazione {
   nome: string;

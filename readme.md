@@ -48,6 +48,29 @@ La chiave *anon* è fatta per stare nel sito: con le regole dello schema, dal si
 quali posti sono occupati (con il nome scelto da chi li ha presi) e creare una prenotazione. Contatti e note
 li vedete solo voi dalla dashboard; con il codice l'invitato rivede solo la propria prenotazione.
 
+## Area sposi
+
+Pagina `/sposi/` (es. `https://TUONOME.github.io/NOME-REPO/sposi/`), con login: elenco delle conferme,
+totali, filtri, ricerca, contatti cliccabili (chiama, WhatsApp, email) ed esportazione CSV per Excel.
+Con `npm run demo` si apre su http://localhost:5174/sposi/ con dati finti, senza login.
+
+Configurazione, una volta sola:
+
+1. **Authentication → Users → Add user → Create new user**: email e password di ciascuno sposo,
+   spuntate **Auto Confirm User**.
+2. **SQL Editor**, sostituendo le due email:
+   ```sql
+   insert into membri (matrimonio_id, user_id)
+   select m.id, u.id from matrimoni m, auth.users u
+   where m.slug = 'antonio-e-rosa' and u.email in ('sposo@esempio.it', 'sposa@esempio.it')
+   on conflict do nothing;
+   ```
+3. **Authentication → Sign In / Providers**: disattivate **Allow new users to sign up** (nessuno può registrarsi da solo).
+4. **Authentication → URL Configuration**: *Site URL* = l'indirizzo dell'invito; in *Redirect URLs* aggiungete
+   l'indirizzo di `/sposi/` (serve per "password dimenticata").
+
+Un account che fa login ma non è in `membri` vede "account non abilitato" e nessun dato.
+
 ## Ricevere un'email a ogni conferma
 
 **Via più semplice, con il vostro Gmail:** Google Apps Script. Niente Resend né password: seguite le istruzioni

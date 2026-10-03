@@ -1,0 +1,89 @@
+/* Area sposi: riusa card, bottoni e campi dell'invito, con un layout da pannello. */
+
+.sposi,.accesso{
+  --avorio:#F7F3E8; --carta:#FFFDF7; --linea:#E4DCC8; --ink:#2B3A31;
+  --soft:#79877C; --salvia:#8FA58C; --bosco:#5E7A63; --oro:#B7994F;
+  min-height:100vh; min-height:100dvh; color:var(--ink); background:var(--avorio);
+  font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-weight:400; -webkit-font-smoothing:antialiased;
+}
+.aiuto.ok{color:var(--bosco)}
+.btn-piccolo{height:38px; padding:0 12px; font-size:12.5px; border-radius:11px; text-decoration:none}
+
+/* ---------------------------------------------------------------- accesso */
+.accesso{display:flex; align-items:center; justify-content:center; padding:24px 16px;
+  background:radial-gradient(900px 600px at 50% 30%,#FDFBF3 0%,#F3EEE0 60%,#EDE7D6 100%)}
+.accesso-card{width:100%; max-width:380px; background:var(--carta); border:1px solid var(--linea); border-radius:22px;
+  padding:28px 22px; text-align:center; box-shadow:0 30px 55px -32px rgba(43,58,49,.55)}
+.accesso-card .occhiello{margin:10px 0 4px}
+.accesso-nomi{font-family:'Cormorant Garamond',serif; font-weight:500; font-size:32px; margin:0}
+.accesso-titolo{font-size:13px; color:var(--soft); margin:6px 0 20px}
+.accesso-form{display:flex; flex-direction:column; gap:10px; text-align:left}
+.accesso-form .btn-largo{margin-top:6px}
+.accesso-form .link{align-self:center; margin-top:4px}
+
+/* ---------------------------------------------------------------- struttura */
+.sposi-contenitore{max-width:1080px; margin:0 auto; padding:0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right))}
+.sposi-testa{position:sticky; top:0; z-index:20; background:rgba(247,243,232,.94); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--linea); padding-top:env(safe-area-inset-top)}
+.sposi-testa-in{display:flex; align-items:center; justify-content:space-between; gap:12px; height:56px}
+.sposi-utente{display:flex; align-items:center; gap:10px; font-size:12px; color:var(--soft); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sposi-corpo{padding-top:20px; padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+.sposi-titolo{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.sposi-titolo .titolo{font-size:30px; margin:0 0 12px}
+.sposi-titolo .aiuto{white-space:nowrap}
+
+/* ---------------------------------------------------------------- contatori */
+.contatori{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px}
+@media(min-width:640px){.contatori{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:960px){.contatori{grid-template-columns:repeat(6,1fr)}}
+.contatore{display:flex; flex-direction:column; gap:2px; text-align:left; background:var(--carta); border:1px solid var(--linea);
+  border-radius:16px; padding:12px 14px; font:inherit; color:inherit}
+.contatore.cliccabile{cursor:pointer; transition:border-color .2s}
+@media(hover:hover){.contatore.cliccabile:hover{border-color:var(--salvia)}}
+.contatore .v{font-family:'Cormorant Garamond',serif; font-size:30px; line-height:1}
+.contatore .l{font-size:11.5px; color:var(--soft)}
+.contatore.forte{background:linear-gradient(135deg,#3E5646,#2F4438); border-color:#2F4438; color:#F7F3E8}
+.contatore.forte .l{color:#CFDCC9}
+
+/* ---------------------------------------------------------------- strumenti */
+.strumenti{display:flex; flex-direction:column; gap:8px; margin-bottom:12px}
+@media(min-width:760px){.strumenti{flex-direction:row; align-items:center}}
+.cerca{flex:1; display:flex; align-items:center; gap:8px; border:1px solid var(--linea); border-radius:13px; padding:0 12px;
+  background:var(--carta); color:var(--soft)}
+.cerca:focus-within{border-color:var(--oro); box-shadow:0 0 0 3px rgba(183,153,79,.15)}
+.cerca input{flex:1; min-width:0; border:none; background:transparent; outline:none; height:42px; font:inherit; font-size:16px; color:var(--ink)}
+.filtri{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.filtri select{height:40px; border:1px solid var(--linea); border-radius:11px; background:var(--carta); color:var(--ink);
+  font:inherit; font-size:13px; padding:0 10px; flex:1; min-width:0}
+@media(min-width:760px){.filtri select{flex:none}}
+.gira{animation:gira 1s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+.conteggio-elenco{margin:4px 0 10px}
+
+/* ---------------------------------------------------------------- elenco */
+.elenco-conferme{display:grid; grid-template-columns:1fr; gap:10px}
+@media(min-width:900px){.elenco-conferme{grid-template-columns:1fr 1fr}}
+.elenco-conferme .card{margin:0}
+.conferma{display:flex; flex-direction:column; gap:12px}
+.conferma.stato-annullata{opacity:.62}
+.conferma.stato-da_verificare{border-color:#E7D8AE}
+.conferma-testa{display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
+.conferma-nome{font-family:'Cormorant Garamond',serif; font-weight:500; font-size:23px; margin:0; line-height:1.15}
+.badge-gruppo{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none}
+.badge{font-size:10.5px; letter-spacing:.04em; padding:3px 9px; border-radius:999px; white-space:nowrap; background:#EEE9DA; color:var(--soft)}
+.badge-confermata{background:#E9F1E8; color:#4F7549}
+.badge-da_verificare{background:#F8F0DC; color:#8A6D22}
+.badge-annullata{background:#EEE9DA; color:#8B8B85}
+.badge-r-confermato{background:#E6F2F8; color:#2F7FA6}
+.badge-r-non_viene{background:#FAEEDF; color:#A95F1C}
+.badge-r-non_risponde{background:#F3EDF6; color:#7A5A8C}
+.conferma-dati{display:flex; flex-direction:column; gap:6px; margin:0}
+.conferma-dati > div{display:grid; grid-template-columns:92px 1fr; gap:8px; font-size:13.5px}
+.conferma-dati dt{font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--soft); padding-top:2px}
+.conferma-dati dd{margin:0; min-width:0; overflow-wrap:anywhere}
+.conferma-dati .evidenza dd{color:#8A5A12}
+.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:.08em}
+.conferma-contatti{display:flex; flex-wrap:wrap; gap:6px; padding-top:10px; border-top:1px dotted var(--linea)}
+.vuoto{text-align:center; padding:28px 18px}
+.vuoto .t{font-size:15px; font-weight:500; margin:0 0 6px}
+.vuoto .d{font-size:13px; color:var(--soft); margin:0 0 14px; line-height:1.5}
