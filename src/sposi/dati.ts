@@ -1,7 +1,9 @@
 import { supabase } from "../lib/supabase";
 import { POSTI_PER_ID, SETTORI, SUPPLEMENTI } from "../data/sala";
-import type { PrenotazioneSalvata } from "../lib/prenotazioni";
+import type { Ospite } from "../lib/prenotazioni";
+import { demo } from "./demo";
 
+export type { Ospite };
 export type Stato = "confermata" | "da_verificare" | "annullata";
 export type Richiamo = "da_sentire" | "confermato" | "non_viene" | "non_risponde";
 
@@ -14,6 +16,7 @@ export interface Prenotazione {
   note: string | null;
   persone: number;
   posti: string[];
+  ospiti: Ospite[];
   supplementi: string[];
   totale: number;
   codice: string;
@@ -22,6 +25,19 @@ export interface Prenotazione {
   richiamo_il: string | null;
   nota_sposi: string | null;
   invito_id: string | null;
+}
+
+export type NuovaPrenotazioneSposi = Pick<Prenotazione, "nome" | "contatto" | "note" | "posti" | "ospiti" | "totale" | "invito_id"> & {
+  stato?: Stato;
+};
+
+export interface VoceStorico {
+  id: number;
+  chi: "invitato" | "sposi";
+  azione: string;
+  prima: Partial<Prenotazione> | null;
+  dopo: Partial<Prenotazione> | null;
+  quando: string;
 }
 
 export const ETICHETTE_STATO: Record<Stato, string> = {
@@ -37,6 +53,9 @@ export const ETICHETTE_RICHIAMO: Record<Richiamo, string> = {
   non_risponde: "Non risponde",
 };
 
+const CAMPI =
+  "id, creata_il, modificata_il, nome, contatto, note, persone, posti, ospiti, supplementi, totale, codice, stato, richiamo, richiamo_il, nota_sposi, invito_id";
+
 /** Il matrimonio amministrato da chi ha fatto login (null = account non abilitato). */
 export async function caricaMatrimonio(): Promise<{ id: string; slug: string } | null> {
   if (!supabase) return { id: "demo", slug: "demo" };
@@ -49,24 +68,39 @@ export async function caricaMatrimonio(): Promise<{ id: string; slug: string } |
 }
 
 export async function caricaPrenotazioni(matrimonioId: string): Promise<Prenotazione[]> {
-  if (!supabase) return [...prenotazioniDalSitoDemo(), ...(demo ??= prenotazioniDemo())].map((p) => ({ ...p }));
-  const { data, error } = await supabase
-    .from("prenotazioni")
-    .select("id, creata_il, modificata_il, nome, contatto, note, persone, posti, supplementi, totale, codice, stato, richiamo, richiamo_il, nota_sposi, invito_id")
-    .eq("matrimonio_id", matrimonioId)
-    .order("creata_il", { ascending: false });
+  if (!supabase) return demo.prenotazioni();
+  const { data, error } = await supabase.from("prenotazioni").select(CAMPI).eq("matrimonio_id", matrimonioId).order("creata_il", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Prenotazione[];
+  return ((data ?? []) as Prenotazione[]).map((p) => ({ ...p, ospiti: p.ospiti ?? [] }));
 }
 
 export async function aggiornaPrenotazione(id: string, modifiche: Partial<Prenotazione>): Promise<void> {
-  if (!supabase) {
-    modificheDemo.set(id, { ...modificheDemo.get(id), ...modifiche });
-    demo = (demo ??= prenotazioniDemo()).map((p) => (p.id === id ? { ...p, ...modifiche } : p));
-    return;
-  }
+  if (!supabase) return demo.aggiornaPrenotazione(id, modifiche);
   const { error } = await supabase.from("prenotazioni").update(modifiche).eq("id", id);
   if (error) throw error;
+}
+
+export async function creaPrenotazione(matrimonioId: string, p: NuovaPrenotazioneSposi): Promise<void> {
+  if (!supabase) return demo.creaPrenotazione(p);
+  const { error } = await supabase.from("prenotazioni").insert({
+    ...p,
+    matrimonio_id: matrimonioId,
+    stato: p.stato ?? "confermata",
+    persone: p.posti.length,
+  });
+  if (error) throw error;
+}
+
+export async function caricaStorico(prenotazioneId: string): Promise<VoceStorico[]> {
+  if (!supabase) return demo.storico(prenotazioneId);
+  const { data, error } = await supabase
+    .from("storico")
+    .select("id, chi, azione, prima, dopo, quando")
+    .eq("prenotazione_id", prenotazioneId)
+    .order("quando", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []) as VoceStorico[];
 }
 
 /** Richiama `onCambio` quando cambia qualcosa (nuove conferme, annullamenti). */
@@ -87,6 +121,17 @@ export function ascoltaCambi(onCambio: () => void): () => void {
   };
 }
 
+/** Messaggi comprensibili per gli errori che arrivano dal database. */
+export function messaggioErrore(e: unknown): string {
+  const m = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e);
+  if (m.includes("ospiti_numero_diverso")) return "Serve un nome per ogni persona.";
+  if (m.includes("ospite_senza_nome")) return "C'è un ospite senza nome.";
+  if (m.includes("row-level security") || m.includes("permission")) return "Non avete i permessi per questa operazione.";
+  if (m.includes("Failed to fetch") || m.includes("NetworkError")) return "Connessione assente. Riprovate tra poco.";
+  return "Operazione non riuscita. Riprovate.";
+}
+
+// ------------------------------------------------------------ formattazione
 export const descriviPosti = (posti: string[]) => {
   const settori = [...new Set(posti.map((id) => POSTI_PER_ID.get(id)?.set).filter(Boolean))] as (keyof typeof SETTORI)[];
   return { elenco: posti.join(", "), settori: settori.map((s) => SETTORI[s].nome).join(" · ") };
@@ -95,108 +140,17 @@ export const descriviPosti = (posti: string[]) => {
 export const nomeSupplemento = (id: string) => SUPPLEMENTI.find((s) => s.id === id)?.n ?? id;
 
 const fmtData = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const fmtGiorno = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
 export const dataBreve = (iso: string) => fmtData.format(new Date(iso));
+export const giornoBreve = (iso: string) => fmtGiorno.format(new Date(iso));
 
-/** CSV con separatore ";" e BOM: si apre bene in Excel italiano. */
-export function scaricaCsv(righe: Prenotazione[]) {
-  const intestazione = ["Data", "Codice", "Nome", "Persone", "Stato", "Seconda conferma", "Posti", "Contatto", "Note", "Nota sposi", "Supplementi", "Totale"];
-  const cella = (v: unknown) => {
-    const s = String(v ?? "");
-    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const corpo = righe.map((p) =>
-    [
-      new Date(p.creata_il).toLocaleString("it-IT"),
-      p.codice,
-      p.nome,
-      p.persone,
-      ETICHETTE_STATO[p.stato],
-      ETICHETTE_RICHIAMO[p.richiamo],
-      p.posti.join(" "),
-      p.contatto,
-      p.note,
-      p.nota_sposi,
-      p.supplementi.map(nomeSupplemento).join(", "),
-      p.totale,
-    ]
-      .map(cella)
-      .join(";"),
-  );
-  const csv = "﻿" + [intestazione.join(";"), ...corpo].join("\r\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `conferme-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// ------------------------------------------------------------ dati finti per "npm run demo"
-let demo: Prenotazione[] | undefined;
-const modificheDemo = new Map<string, Partial<Prenotazione>>();
-
-/** Le prenotazioni fatte dall'invito in modalità demo (stesso browser), collegate agli inviti demo. */
-function prenotazioniDalSitoDemo(): Prenotazione[] {
-  try {
-    const sito = JSON.parse(localStorage.getItem("invito-ar:demo-prenotazioni") || "[]") as (PrenotazioneSalvata & { invito?: string })[];
-    const inviti = JSON.parse(localStorage.getItem("invito-ar:demo-inviti") || "[]") as { id: string; token: string }[];
-    return sito
-      .map((p): Prenotazione => {
-        const invito = p.invito ? inviti.find((i) => i.token === p.invito) : undefined;
-        return {
-          id: p.id,
-          creata_il: p.creataIl,
-          modificata_il: null,
-          nome: p.nome,
-          contatto: p.contatto || null,
-          note: p.note || null,
-          persone: p.posti.length,
-          posti: p.posti,
-          supplementi: p.supplementi,
-          totale: p.totale,
-          codice: p.codice,
-          stato: invito ? "confermata" : "da_verificare",
-          richiamo: "da_sentire",
-          richiamo_il: null,
-          nota_sposi: null,
-          invito_id: invito?.id ?? null,
-          ...modificheDemo.get(p.id),
-        };
-      })
-      .reverse();
-  } catch {
-    return [];
-  }
-}
-function prenotazioniDemo(): Prenotazione[] {
-  const ora = Date.now();
-  const p = (i: number, nome: string, posti: string[], extra: Partial<Prenotazione> = {}): Prenotazione => ({
-    id: "demo-" + i,
-    creata_il: new Date(ora - i * 7.3e6).toISOString(),
-    modificata_il: null,
-    nome,
-    contatto: null,
-    note: null,
-    persone: posti.length,
-    posti,
-    supplementi: [],
-    totale: 200 + posti.length * 130,
-    codice: "AR-DEMO" + String(i).padStart(2, "0"),
-    stato: "confermata",
-    richiamo: "da_sentire",
-    richiamo_il: null,
-    nota_sposi: null,
-    invito_id: null,
-    ...extra,
-  });
-  return [
-    p(1, "Famiglia Esposito", ["B2-1", "B2-2", "B2-3", "B2-4"], { contatto: "333 123 4567", note: "Un bambino di 4 anni, serve il seggiolone", supplementi: ["bis"] }),
-    p(2, "Zia Concetta", ["A1-3"], { contatto: "081 8015731", richiamo: "confermato", richiamo_il: new Date(ora - 864e5).toISOString() }),
-    p(3, "Cugino Mimmo e Teresa", ["C2-1", "C2-2"], { contatto: "mimmo@esempio.it", note: "Teresa è celiaca" }),
-    p(4, "Amici del liceo", ["B4-1", "B4-2", "B4-3", "B4-4", "B4-5"], { stato: "da_verificare" }),
-    p(5, "Famiglia Russo", ["C3-5", "C3-6", "C3-7"], { contatto: "+39 340 765 4321", stato: "annullata", nota_sposi: "Hanno un altro matrimonio lo stesso giorno" }),
-    p(6, "Il socio di papà", ["A2-6"], { contatto: "347 000 1111", richiamo: "non_risponde" }),
-  ];
+const rtf = new Intl.RelativeTimeFormat("it-IT", { numeric: "auto" });
+export function dataRelativa(iso: string) {
+  const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  const a = Math.abs(s);
+  if (a < 60) return "adesso";
+  if (a < 3600) return rtf.format(Math.round(s / 60), "minute");
+  if (a < 86400) return rtf.format(Math.round(s / 3600), "hour");
+  if (a < 86400 * 7) return rtf.format(Math.round(s / 86400), "day");
+  return giornoBreve(iso);
 }

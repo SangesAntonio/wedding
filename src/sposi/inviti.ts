@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase";
-import { CHIAVE_DEMO_INVITI } from "../lib/prenotazioni";
 import { linkWhatsApp } from "../lib/contatti";
+import { demo } from "./demo";
 
 export interface Invito {
   id: string;
@@ -23,40 +23,18 @@ const CAMPI = "id, token, nome, telefono, email, persone_previste, nota_sposi, i
 export const MESSAGGIO_PREDEFINITO =
   "Ciao {nome}! 💍\nAntonio e Rosa si sposano martedì 20 luglio 2027.\nQui trovate il vostro invito, potete scegliere i posti e confermare: {link}";
 
-// ------------------------------------------------------------ modalità demo (localStorage, condiviso con l'invito)
-const leggiDemo = (): Invito[] => {
-  try {
-    return JSON.parse(localStorage.getItem(CHIAVE_DEMO_INVITI) || "[]");
-  } catch {
-    return [];
-  }
-};
-const scriviDemo = (v: Invito[]) => localStorage.setItem(CHIAVE_DEMO_INVITI, JSON.stringify(v));
-const tokenDemo = () => Array.from({ length: 8 }, () => "23456789abcdefghjkmnpqrstuvwxyz"[Math.floor(Math.random() * 31)]).join("");
 const CHIAVE_DEMO_MSG = "invito-ar:demo-messaggio";
 
 // ------------------------------------------------------------ lettura e scrittura
 export async function caricaInviti(matrimonioId: string): Promise<Invito[]> {
-  if (!supabase) return leggiDemo();
+  if (!supabase) return demo.inviti();
   const { data, error } = await supabase.from("inviti").select(CAMPI).eq("matrimonio_id", matrimonioId).order("nome");
   if (error) throw error;
   return (data ?? []) as Invito[];
 }
 
 export async function creaInviti(matrimonioId: string, nuovi: NuovoInvito[]): Promise<Invito[]> {
-  if (!supabase) {
-    const creati = nuovi.map((n) => ({
-      ...n,
-      id: crypto.randomUUID(),
-      token: tokenDemo(),
-      inviato_il: null,
-      aperto_il: null,
-      revocato: false,
-      creato_il: new Date().toISOString(),
-    }));
-    scriviDemo([...leggiDemo(), ...creati]);
-    return creati;
-  }
+  if (!supabase) return demo.creaInviti(nuovi);
   const { data, error } = await supabase
     .from("inviti")
     .insert(nuovi.map((n) => ({ ...n, matrimonio_id: matrimonioId })))
@@ -66,19 +44,13 @@ export async function creaInviti(matrimonioId: string, nuovi: NuovoInvito[]): Pr
 }
 
 export async function aggiornaInvito(id: string, modifiche: Partial<Invito>): Promise<void> {
-  if (!supabase) {
-    scriviDemo(leggiDemo().map((i) => (i.id === id ? { ...i, ...modifiche } : i)));
-    return;
-  }
+  if (!supabase) return demo.aggiornaInvito(id, modifiche);
   const { error } = await supabase.from("inviti").update(modifiche).eq("id", id);
   if (error) throw error;
 }
 
 export async function eliminaInvito(id: string): Promise<void> {
-  if (!supabase) {
-    scriviDemo(leggiDemo().filter((i) => i.id !== id));
-    return;
-  }
+  if (!supabase) return demo.eliminaInvito(id);
   const { error } = await supabase.from("inviti").delete().eq("id", id);
   if (error) throw error;
 }

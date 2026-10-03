@@ -30,7 +30,7 @@ Quando l'IBAN è quello vero mettete `IBAN_DI_ESEMPIO = false`.
 
 1. Create un account su https://supabase.com e un nuovo progetto (regione: Frankfurt/EU).
 2. **SQL Editor → New query**: incollate tutto [supabase/schema.sql](supabase/schema.sql) e premete **Run**.
-   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql).
+   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql), [05](supabase/migrazione-05-data.sql), [06](supabase/migrazione-06-ospiti.sql).
    Se il database era stato creato con la primissima versione, prima della 03 eseguite [migrazione-02-codice.sql](supabase/migrazione-02-codice.sql).
 3. **Project Settings → API**: copiate *Project URL* e la chiave *anon public*.
 4. Copiate `.env.example` in `.env` e incollate i due valori. Riavviate `npm run dev`.
@@ -50,14 +50,20 @@ li vedete solo voi dalla dashboard; con il codice l'invitato rivede solo la prop
 
 ## Area sposi
 
-Pagina `/sposi/` (es. `https://TUONOME.github.io/NOME-REPO/sposi/`), con login e due schede:
+Pagina `/sposi/` (es. `https://TUONOME.github.io/NOME-REPO/sposi/`), con login. Fatta con Tailwind CSS 4 e
+componenti shadcn/ui (solo qui: l'invito degli ospiti ha il suo stile), tema chiaro/scuro, installabile come app.
 
-- **Conferme**: totali, filtri, ricerca, contatti cliccabili (chiama, WhatsApp, email), esportazione CSV;
-  le conferme arrivate dal link generico sono *da verificare* (Approva / Collega a un invito / Non la conosciamo).
-- **Invitati**: lista delle famiglie con il loro **link personale** (`…/?i=TOKEN`). Inserimento a mano o da Excel
-  (scaricate il modello, compilatelo, caricatelo), invio su WhatsApp con messaggio già pronto, anche **in sequenza**,
-  e stato di ogni invito: da inviare, inviato, aperto, confermato. Il testo del messaggio si cambia da *Messaggio*.
-Con `npm run demo` si apre su http://localhost:5174/sposi/ con dati finti, senza login.
+- **Panoramica**: persone confermate (adulti/bambini), famiglie, risposte nel tempo, cose da fare, ultime risposte.
+- **Ospiti**: una riga per famiglia (invito + conferma). Filtri rapidi con i conteggi, ricerca anche per nome
+  dell'ospite, ordinamento, colonne e densità regolabili, selezione multipla (invia, segna inviati, esporta, revoca).
+  Clic su una riga → dettaglio: seconda conferma con un tocco, ospiti e posti, nota privata, modifica,
+  annulla/ripristina, invito (WhatsApp, link), storico. Su telefono la lista è compatta e il dettaglio sale dal basso.
+- **Aggiungi**: nuovo invito, prenotazione a mano (chi risponde al telefono), Excel (modello + caricamento).
+- **Esporta**: Excel con il foglio *Ospiti* (una riga per persona, per famiglia) e il foglio *Famiglie*.
+- **Impostazioni**: messaggio WhatsApp con anteprima, link generico, tema, account.
+- `Ctrl+K` (o la lente su telefono): cerca una famiglia o un'azione.
+
+Con `npm run demo` si apre su http://localhost:5174/sposi/ con ~50 famiglie finte, senza login.
 
 Configurazione, una volta sola:
 

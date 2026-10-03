@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/sposi/app.css",
+    "baseColor": "stone",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@/sposi/components",
+    "ui": "@/sposi/ui",
+    "utils": "@/sposi/lib/utils",
+    "lib": "@/sposi/lib",
+    "hooks": "@/sposi/hooks"
+  }
+}

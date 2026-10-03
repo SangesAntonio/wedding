@@ -24,7 +24,7 @@ flowchart TD
 ```
 
 1. **Sessione.** Dopo il login Supabase salva la sessione nel browser (localStorage) e la rinnova da solo: riaprendo la pagina si entra senza rifare il login, finché non si preme *Esci*.
-2. **Abilitazione.** Il sito legge la tabella `membri` per sapere quale matrimonio amministra l'account. Se non trova niente mostra "account non abilitato".
+2. **Abilitazione.** Il sito (`useMatrimonio` in [query.ts](../src/sposi/query.ts)) legge la tabella `membri` per sapere quale matrimonio amministra l'account. Se non trova niente mostra "account non abilitato".
 3. **Dati.** Ogni lettura e scrittura passa dalle regole RLS del database (vedi sotto), che controllano di nuovo l'appartenenza.
 
 ## Password dimenticata
@@ -117,7 +117,7 @@ Queste regole sono state provate in locale su Postgres simulando invitato, sposo
 |---|---|
 | [sposi/index.html](../sposi/index.html) | Pagina dell'area sposi (con `noindex`, non compare sui motori di ricerca) |
 | [src/sposi/Accesso.tsx](../src/sposi/Accesso.tsx) | Login, password dimenticata, nuova password, logout |
-| [src/sposi/AreaSposi.tsx](../src/sposi/AreaSposi.tsx) | Controlla l'abilitazione e mostra le schede Conferme e Invitati |
+| [src/sposi/main.tsx](../src/sposi/main.tsx) | Controlla l'abilitazione e monta le pagine Panoramica, Ospiti, Impostazioni |
 | [src/sposi/dati.ts](../src/sposi/dati.ts) | `caricaMatrimonio()`: legge `membri` per sapere quale matrimonio si amministra |
 | [src/lib/supabase.ts](../src/lib/supabase.ts) | Client Supabase condiviso con l'invito |
 | [supabase/migrazione-03-area-sposi.sql](../supabase/migrazione-03-area-sposi.sql) | Tabelle `membri`, funzione `e_sposo`, regole RLS |

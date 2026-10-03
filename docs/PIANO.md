@@ -109,34 +109,38 @@ Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli inv
 > (schede troppo grandi per 50 famiglie e 100+ persone, aspetto poco professionale). Prima si rifà la base grafica
 > e la tabella, poi le funzioni mancanti si costruiscono direttamente sulla base nuova, senza rifarle due volte.
 
-### Fase A — Nuova base dell'area sposi
+### Nominativi degli ospiti ✅
+- [x] Un nome per ogni posto (e "bimbo"), nell'invito, nel biglietto, nell'email e nell'area sposi — [migrazione 06](../supabase/migrazione-06-ospiti.sql)
+- [x] Esportazione Excel: foglio **Ospiti** (una riga per persona, divisa per famiglia) + foglio **Famiglie**
+
+### Fase A — Nuova base dell'area sposi ✅
 Solo `/sposi/`: l'invito per gli ospiti mantiene il suo stile, che è già curato.
-- [ ] Stack (vedi *Frontend dell'area sposi* sotto): Tailwind CSS 4 + componenti **shadcn/ui** (Radix), solo nel bundle `/sposi/`
-- [ ] Temi: colori dell'invito (avorio, salvia, bosco, oro) come variabili; chiaro e scuro; Cormorant per i titoli, Inter per l'interfaccia
-- [ ] Struttura: barra laterale su computer, barra in basso su telefono; pagine **Panoramica · Ospiti · Impostazioni**
-- [ ] Componenti base: pulsanti, campi, badge di stato, menu, finestre, pannello laterale (computer) / foglio dal basso (telefono), notifiche
-- [ ] Ricerca rapida `Ctrl+K` / tocco sulla lente: trova una famiglia da qualunque pagina
-- [ ] Installabile come app (PWA): icona sulla schermata del telefono, apertura a tutto schermo
-- [ ] Le funzioni di oggi (login, inviti, Excel, WhatsApp, verifica) portate sulla base nuova senza perderne nessuna
+- [x] Stack (vedi *Frontend dell'area sposi* sotto): Tailwind CSS 4 + componenti **shadcn/ui** (Radix), solo nel bundle `/sposi/`
+- [x] Temi: colori dell'invito (avorio, salvia, bosco, oro) come variabili; chiaro e scuro; Cormorant per i titoli, Inter per l'interfaccia
+- [x] Struttura: barra laterale su computer, barra in basso su telefono; pagine **Panoramica · Ospiti · Impostazioni**
+- [x] Componenti base: pulsanti, campi, badge di stato, menu, finestre, pannello laterale (computer) / foglio dal basso (telefono), notifiche
+- [x] Ricerca rapida `Ctrl+K` / tocco sulla lente: trova una famiglia da qualunque pagina
+- [x] Installabile come app (PWA): icona sulla schermata del telefono, apertura a tutto schermo
+- [x] Le funzioni di oggi (login, inviti, Excel, WhatsApp, verifica) portate sulla base nuova senza perderne nessuna
 
-### Fase B — Tabella "Ospiti" compatta
+### Fase B — Tabella "Ospiti" compatta ✅
 Una riga per famiglia (~44 px su computer), al posto di schede separate per inviti e conferme.
-- [ ] **Una sola vista**: invito + prenotazione sulla stessa riga; le conferme dal link generico compaiono come righe "da verificare"
-- [ ] Colonne: famiglia · stato (inviato / aperto / confermato / annullato / da verificare) · persone (previste → confermate) · telefono · seconda conferma · note · ultimo aggiornamento
-- [ ] Ordinamento per colonna, filtri rapidi a "pillole" con i conteggi, ricerca, colonne da mostrare/nascondere, densità comoda/compatta
-- [ ] Selezione multipla con azioni di gruppo: invia in sequenza solo ai selezionati, segna inviato, revoca, esporta
-- [ ] Clic su una riga → pannello di dettaglio (dati, prenotazione, posti, storico, azioni) senza lasciare la tabella
-- [ ] Su telefono: righe compatte a due linee (nome + stato, persone + telefono), tocco → foglio dal basso
-- [ ] Intestazione fissa; elenco virtualizzato se si superano qualche centinaio di righe
-- [ ] **Panoramica**: numeri principali, risposte nel tempo (grafico), lista "da fare" (da verificare, senza risposta da 7 giorni, da risentire)
+- [x] **Una sola vista**: invito + prenotazione sulla stessa riga; le conferme dal link generico compaiono come righe "da verificare"
+- [x] Colonne: famiglia · stato (inviato / aperto / confermato / annullato / da verificare) · persone (previste → confermate) · telefono · seconda conferma · note · ultimo aggiornamento
+- [x] Ordinamento per colonna, filtri rapidi a "pillole" con i conteggi, ricerca, colonne da mostrare/nascondere, densità comoda/compatta
+- [x] Selezione multipla con azioni di gruppo: invia in sequenza solo ai selezionati, segna inviato, revoca, esporta
+- [x] Clic su una riga → pannello di dettaglio (dati, prenotazione, posti, storico, azioni) senza lasciare la tabella
+- [x] Su telefono: righe compatte a due linee (nome + stato, persone + telefono), tocco → foglio dal basso
+- [x] Intestazione fissa · *(virtualizzazione non necessaria: 50–100 famiglie scorrono senza problemi)*
+- [x] **Panoramica**: numeri principali, risposte nel tempo (grafico), lista "da fare" (da verificare, senza risposta da 7 giorni, da risentire)
 
-### Fase C — Gestione completa dagli sposi *(ex Fase 3)*
+### Fase C — Gestione completa dagli sposi *(ex Fase 3)* ✅
 Tutto dentro il pannello di dettaglio della tabella.
-- [ ] Seconda conferma con un tocco (riconfermato / non viene / non risponde) + data automatica
-- [ ] Nota privata degli sposi
-- [ ] Modifica prenotazione: nome, persone, posti, contatto, note; annulla / ripristina
-- [ ] Aggiungi prenotazione a mano (chi conferma per telefono)
-- [ ] Storico leggibile come linea del tempo ("3 ott · Famiglia Esposito ha confermato 4 persone", "5 ott · Voi: riconfermato")
+- [x] Seconda conferma con un tocco (riconfermato / non viene / non risponde) + data automatica
+- [x] Nota privata degli sposi
+- [x] Modifica prenotazione: nome, persone, posti, contatto, note; annulla / ripristina
+- [x] Aggiungi prenotazione a mano (chi conferma per telefono)
+- [x] Storico leggibile come linea del tempo ("3 ott · Famiglia Esposito ha confermato 4 persone", "5 ott · Voi: riconfermato")
 
 ### Fase D — Gli invitati modificano la propria prenotazione *(ex Fase 4)*
 - [ ] Dal biglietto (link personale o codice): **Modifica** (persone, sedie, contatto, note) e **Annulla presenza**

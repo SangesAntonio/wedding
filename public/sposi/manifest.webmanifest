@@ -1,0 +1,12 @@
+{
+  "name": "Area sposi — Antonio & Rosa",
+  "short_name": "Sposi A&R",
+  "description": "Invitati, conferme e seconda conferma del matrimonio",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F7F3E8",
+  "theme_color": "#3E5646",
+  "icons": [{ "src": "../favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
