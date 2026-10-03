@@ -87,3 +87,90 @@
 .vuoto{text-align:center; padding:28px 18px}
 .vuoto .t{font-size:15px; font-weight:500; margin:0 0 6px}
 .vuoto .d{font-size:13px; color:var(--soft); margin:0 0 14px; line-height:1.5}
+
+/* ---------------------------------------------------------------- schede */
+.sposi-titolo{align-items:center; margin-bottom:14px}
+.schede{display:flex; gap:4px; padding:4px; border:1px solid var(--linea); border-radius:14px; background:var(--carta)}
+.schede button{position:relative; border:none; background:transparent; font:inherit; font-size:14px; font-weight:500; color:var(--soft);
+  padding:9px 16px; border-radius:10px; cursor:pointer}
+.schede button.on{background:var(--bosco); color:#fff}
+.pallino{display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; margin-left:6px;
+  border-radius:999px; background:var(--oro); color:#fff; font-size:10.5px}
+.sposi-email{overflow:hidden; text-overflow:ellipsis}
+.contatore.avviso-c{border-color:#E7D8AE; background:#FBF6E8}
+
+/* ---------------------------------------------------------------- conferme: verifica */
+.differenza{display:inline-block; margin-left:6px; font-size:11px; padding:1px 7px; border-radius:999px}
+.differenza.piu{background:#FAEEDF; color:#A95F1C}
+.differenza.meno{background:#E6F2F8; color:#2F7FA6}
+.verifica{display:flex; flex-direction:column; gap:8px; padding:10px 12px; border-radius:12px; background:#FBF6E8; border:1px solid #EFE3BF}
+.verifica-azioni{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.verifica-azioni select{height:38px; border:1px solid var(--linea); border-radius:11px; background:var(--carta); font:inherit; font-size:12.5px; padding:0 8px; max-width:100%}
+
+/* ---------------------------------------------------------------- invitati */
+.azioni-inviti{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
+.elenco-inviti{display:grid; grid-template-columns:1fr; gap:8px}
+@media(min-width:900px){.elenco-inviti{grid-template-columns:1fr 1fr}}
+.elenco-inviti .card{margin:0}
+.invito{display:flex; flex-direction:column; gap:10px; padding:14px 16px}
+.invito.stato-inv-revocato{opacity:.55}
+.invito-testa{display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
+.invito-testa .conferma-nome{font-size:21px}
+.invito-nota{margin:4px 0 0; font-style:italic}
+.invito-azioni{display:flex; flex-wrap:wrap; align-items:center; gap:6px}
+.invito-azioni-destra{display:flex; align-items:center; gap:4px; margin-left:auto}
+.invito-azioni-destra .cmd{width:34px; height:34px; border-radius:10px}
+.invito-azioni-destra .link{font-size:11.5px; margin-right:4px}
+.badge-inv-da_inviare{background:#EEE9DA; color:var(--soft)}
+.badge-inv-inviato{background:#E6F2F8; color:#2F7FA6}
+.badge-inv-aperto{background:#F8F0DC; color:#8A6D22}
+.badge-inv-confermato{background:#E9F1E8; color:#4F7549}
+.badge-inv-annullato{background:#FAEEDF; color:#A95F1C}
+.badge-inv-revocato{background:#EEE9DA; color:#8B8B85}
+.vuoto-azioni{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+.sposi-avviso{bottom:calc(24px + env(safe-area-inset-bottom))}
+
+/* ---------------------------------------------------------------- finestre */
+.finestra-sfondo{position:fixed; inset:0; z-index:80; background:rgba(43,58,49,.35); display:flex; align-items:flex-end; justify-content:center;
+  animation:entra .25s ease both}
+.finestra{width:100%; max-height:92dvh; display:flex; flex-direction:column; background:var(--carta); border-radius:22px 22px 0 0;
+  box-shadow:0 -20px 50px -20px rgba(43,58,49,.6); padding-bottom:env(safe-area-inset-bottom)}
+@media(min-width:700px){
+  .finestra-sfondo{align-items:center; padding:24px}
+  .finestra{max-width:520px; border-radius:22px; max-height:88vh}
+  .finestra.larga{max-width:860px}
+}
+.finestra-testa{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px 10px; border-bottom:1px solid var(--linea)}
+.finestra-testa h2{font-family:'Cormorant Garamond',serif; font-weight:500; font-size:24px; margin:0}
+.finestra-corpo{padding:16px 18px 18px; overflow:auto}
+.modulo{display:flex; flex-direction:column; gap:12px}
+.modulo label{display:flex; flex-direction:column; gap:6px}
+.modulo-due{display:grid; grid-template-columns:1fr 120px; gap:10px}
+.modulo-piede{display:flex; justify-content:flex-end; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px}
+.modulo-piede .link{margin-right:auto}
+
+/* ---------------------------------------------------------------- importa */
+.importa-zona{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:26px 16px;
+  border:1.5px dashed var(--lineaForte, #CFC5A9); border-radius:16px; background:#FFFEFA; color:var(--soft); cursor:pointer; text-align:center; font-size:13.5px}
+@media(hover:hover){.importa-zona:hover{border-color:var(--oro); color:var(--ink)}}
+.importa-tabella{max-height:46vh; overflow:auto; border:1px solid var(--linea); border-radius:12px; margin:8px 0}
+.importa-tabella table{width:100%; border-collapse:collapse; font-size:12.5px}
+.importa-tabella th{position:sticky; top:0; background:#F4F1E6; text-align:left; font-weight:500; padding:8px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--soft)}
+.importa-tabella td{padding:7px 8px; border-top:1px solid var(--linea); vertical-align:top}
+.importa-tabella td:first-child{width:22px; color:var(--bosco)}
+.riga-errore{background:#FBEDEA} .riga-errore td:first-child{color:#B5462F}
+.riga-avviso{background:#FBF6E8}
+.importa-msg{display:block; font-size:11px; color:#8A5A12; margin-top:2px}
+
+/* ---------------------------------------------------------------- invio in sequenza */
+.sequenza,.sequenza-fine{display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px}
+.sequenza-barra{width:100%; height:6px; border-radius:6px; background:#EEE9DA; overflow:hidden; margin-bottom:6px}
+.sequenza-barra span{display:block; height:100%; background:var(--bosco); transition:width .3s}
+.sequenza-nome{font-family:'Cormorant Garamond',serif; font-size:30px; margin:4px 0 0}
+.sequenza-msg{width:100%; text-align:left; white-space:pre-wrap; font:inherit; font-size:13px; line-height:1.5; background:#EFF3E7;
+  border-radius:14px 14px 14px 4px; padding:12px 14px; margin:12px 0 4px; color:var(--ink)}
+.sequenza .btn-largo{text-decoration:none; margin-top:8px}
+.sequenza-fine{gap:8px; padding:10px 0}
+.sequenza-fine svg{color:var(--bosco)}
+.sequenza-fine .t{font-size:18px; font-weight:500; margin:0}
+.sposi .btn:disabled{opacity:.45; box-shadow:none}

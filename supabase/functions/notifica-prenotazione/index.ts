@@ -21,7 +21,9 @@ Deno.serve(async (req) => {
   }
   const p = evento.record;
 
+  const daVerificare = p.stato === "da_verificare";
   const righe: [string, string][] = [
+    ["Stato", daVerificare ? "Da verificare (arrivata dal link generico)" : "Confermata dal link personale"],
     ["Nome", p.nome],
     ["Persone", String(p.persone)],
     ["Posti", (p.posti ?? []).join(", ")],
@@ -57,7 +59,7 @@ Deno.serve(async (req) => {
     body: JSON.stringify({
       from: `Invito A&R <${Deno.env.get("EMAIL_MITTENTE") ?? "onboarding@resend.dev"}>`,
       to: (Deno.env.get("EMAIL_SPOSI") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-      subject: `Conferma: ${p.nome} · ${p.persone} ${p.persone === 1 ? "persona" : "persone"}`,
+      subject: `${daVerificare ? "[Da verificare] " : ""}Conferma: ${p.nome} · ${p.persone} ${p.persone === 1 ? "persona" : "persone"}`,
       html,
     }),
   });

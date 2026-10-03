@@ -93,17 +93,17 @@ Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli inv
 - [x] Esporta CSV (per catering, tableau, segnaposti)
 - [x] Aggiornamento in tempo reale quando arriva una conferma
 
-### Fase 2b — Lista invitati e link personali
+### Fase 2b — Lista invitati e link personali ✅
 *Da fare prima di mandare l'invito.*
-- [ ] Lista invitati nell'area sposi: famiglia, telefono, email, persone previste, nota; inserimento e modifica a mano
-- [ ] **Scarica modello Excel** e **Carica Excel/CSV**: anteprima prima di importare, righe con errori evidenziate, niente doppioni
-- [ ] Numeri di telefono normalizzati (`333 123 4567` → `+39 333 1234567`)
-- [ ] Link personale per ogni invito: **Copia link**, **WhatsApp** (se c'è il telefono, messaggio già scritto), **Condividi** (menu del telefono)
-- [ ] Modalità **"Invia in sequenza"**: un tocco per famiglia, segna automaticamente "inviato"
-- [ ] Stato per invito: non aperto · aperto · confermato · annullato → "chi non ha ancora risposto"
-- [ ] L'invito riconosce `?i=TOKEN`: saluta la famiglia, propone le persone previste, collega la prenotazione all'invito
-- [ ] Link generico: le conferme entrano come **da verificare**; nell'area sposi le approvate o le collegate a un invito
-- [ ] Token sconosciuto o revocato → messaggio gentile "questo invito non è più valido, scriveteci"
+- [x] Lista invitati nell'area sposi: famiglia, telefono, email, persone previste, nota; inserimento e modifica a mano
+- [x] **Scarica modello Excel** e **Carica Excel/CSV**: anteprima prima di importare, righe con errori evidenziate, niente doppioni
+- [x] Numeri di telefono normalizzati (`333 123 4567` → `+39 333 1234567`)
+- [x] Link personale per ogni invito: **Copia link**, **WhatsApp** (se c'è il telefono, messaggio già scritto), **Condividi** (menu del telefono)
+- [x] Modalità **"Invia in sequenza"**: un tocco per famiglia, segna automaticamente "inviato"
+- [x] Stato per invito: non aperto · aperto · confermato · annullato → "chi non ha ancora risposto"
+- [x] L'invito riconosce `?i=TOKEN`: saluta la famiglia, propone le persone previste, collega la prenotazione all'invito
+- [x] Link generico: le conferme entrano come **da verificare**; nell'area sposi le approvate o le collegate a un invito
+- [x] Token sconosciuto o revocato → messaggio gentile "questo invito non è più valido, scriveteci"
 
 ### Fase 3 — Seconda conferma e gestione dagli sposi
 - [ ] Su ogni riga: stato del richiamo con un tocco (confermato / non viene / non risponde) + data automatica
@@ -158,8 +158,8 @@ Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli inv
 | Link inoltrati | Link personali per famiglia + link generico con stato "da verificare" |
 | Lista invitati | Inserimento a mano **e** caricamento Excel da un modello scaricabile (famiglia, telefono, email, persone previste, note) |
 | Invio inviti | Con telefono: WhatsApp con messaggio pronto e invio in sequenza. Sempre: copia link manuale |
+| Saluto personale | Chi apre il suo link vede "per Famiglia Esposito" sulla busta e "Ciao Famiglia Esposito" come titolo |
 
 ## Domande aperte
 
-1. Chi apre un link personale vede il **nome della famiglia** già scritto ("Ciao Famiglia Esposito")? *(proposta: sì)*
-2. Testo del messaggio WhatsApp: lo scriviamo insieme in Fase 2b (modificabile dall'area sposi).
+Nessuna al momento.

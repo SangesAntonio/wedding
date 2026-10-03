@@ -32,6 +32,10 @@ import {
   cercaPrenotazione,
   dimenticaMiaPrenotazione,
   leggiMiaPrenotazione,
+  apriInvito,
+  tokenDallUrl,
+  InvitoGiaConfermato,
+  type InvitoAperto,
   ricordaMiaPrenotazione,
   salvaPrenotazione,
   type PrenotazioneSalvata,
@@ -102,6 +106,33 @@ export default function App() {
   const [erroreCodice, setErroreCodice] = useState("");
   const [codiceCopiato, setCodiceCopiato] = useState(false);
   const azioniSala = useRef<AzioniSala | null>(null);
+  // link personale ?i=TOKEN
+  const token = useMemo(tokenDallUrl, []);
+  const [invito, setInvito] = useState<InvitoAperto | null>(null);
+  const [invitoNonValido, setInvitoNonValido] = useState(false);
+
+  const caricaInvito = useCallback(async () => {
+    if (!token) return;
+    try {
+      const r = await apriInvito(token);
+      if (!r || r === "revocato") {
+        setInvitoNonValido(true);
+        return;
+      }
+      setInvito(r);
+      setNome((n) => n || r.nome);
+      if (r.persone_previste) setQuanti(Math.min(8, Math.max(1, r.persone_previste)));
+      if (r.prenotazione && r.prenotazione.stato !== "annullata") {
+        ricordaMiaPrenotazione(r.prenotazione);
+        setSalvata(r.prenotazione);
+      }
+    } catch {
+      /* senza rete l'invito funziona come link generico */
+    }
+  }, [token]);
+  useEffect(() => {
+    caricaInvito();
+  }, [caricaInvito]);
 
   // se la prenotazione ricordata è stata cancellata dal database, la dimentichiamo
   useEffect(() => {
@@ -109,7 +140,7 @@ export default function App() {
     if (!ricordata) return;
     cercaPrenotazione(ricordata.codice)
       .then((p) => {
-        if (p) {
+        if (p && p.stato !== "annullata") {
           ricordaMiaPrenotazione(p);
           setSalvata(p);
         } else {
@@ -243,14 +274,22 @@ export default function App() {
         posti: selezione.map((s) => s.id),
         supplementi,
         totale,
+        invito: invito ? token : null,
       });
       vibra([10, 40, 10, 40, 30]);
       setConfermata(p);
       ricordaMiaPrenotazione(p);
       setSalvata(p);
       aggiornaOccupati();
-    } catch {
-      setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
+    } catch (e) {
+      if (e instanceof InvitoGiaConfermato) {
+        await caricaInvito();
+        setSelezione([]);
+        vaiA(0);
+        setAvviso("Per questo invito c'è già una conferma: la trovate qui sotto.");
+      } else {
+        setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
+      }
     } finally {
       setInvio(false);
     }
@@ -319,7 +358,7 @@ export default function App() {
 
   return (
     <div className="app">
-      {busta && <Busta onFine={() => setBusta(false)} />}
+      {busta && <Busta onFine={() => setBusta(false)} destinatario={invito?.nome} />}
 
       <header className="barra-alta">
         <div className={"contenitore barra-alta-in" + (step === 1 ? " largo" : "")}>
@@ -341,6 +380,7 @@ export default function App() {
                 <Angolo pos="bl" />
                 <Stelle n={18} />
                 <div className="manifesto-in">
+                  {invito && <p className="saluto">Ciao {invito.nome}</p>}
                   <p className="occhiello">Unica replica</p>
                   <Filigrana w={230} />
                   <h1 className="nomi">
@@ -377,6 +417,13 @@ export default function App() {
                   </div>
                 </div>
               </section>
+
+              {invitoNonValido && (
+                <section className="card nota-invalido">
+                  <p className="t">Questo link personale non è più valido</p>
+                  <p className="d">Potete comunque confermare da qui, oppure scriveteci: sistemiamo noi.</p>
+                </section>
+              )}
 
               {mia && !altroCodice ? (
                 <section className="card nota-famiglia nota-salvata">

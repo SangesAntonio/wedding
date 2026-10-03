@@ -11,16 +11,20 @@ export interface NuovaPrenotazione {
   posti: string[];
   supplementi: string[];
   totale: number;
+  /** token del link personale (?i=…), se l'invitato è arrivato da lì */
+  invito?: string | null;
 }
 
 export interface PrenotazioneSalvata extends NuovaPrenotazione {
   id: string;
   codice: string;
   creataIl: string;
+  stato?: "confermata" | "da_verificare" | "annullata";
 }
 
 const CHIAVE_DEMO = "invito-ar:demo-prenotazioni";
 const CHIAVE_MIA = "invito-ar:mia-prenotazione";
+export const CHIAVE_DEMO_INVITI = "invito-ar:demo-inviti";
 
 /**
  * Le sedie sono scenografiche: mostriamo come occupate quelle scelte per prime,
@@ -76,6 +80,7 @@ function codiceDemo() {
 export async function salvaPrenotazione(p: NuovaPrenotazione): Promise<PrenotazioneSalvata> {
   if (!supabase) {
     await new Promise((r) => setTimeout(r, 600));
+    if (p.invito && leggiDemo().some((x) => x.invito === p.invito)) throw new InvitoGiaConfermato();
     const salvata = { ...p, id: "demo-" + Date.now(), codice: codiceDemo(), creataIl: new Date().toISOString() };
     try {
       localStorage.setItem(CHIAVE_DEMO, JSON.stringify([...leggiDemo(), salvata]));
@@ -92,10 +97,54 @@ export async function salvaPrenotazione(p: NuovaPrenotazione): Promise<Prenotazi
     p_posti: p.posti,
     p_supplementi: p.supplementi,
     p_totale: p.totale,
+    p_invito: p.invito || null,
   });
-  if (error) throw error;
+  if (error) {
+    if (error.message.includes("invito_gia_confermato")) throw new InvitoGiaConfermato();
+    throw error;
+  }
   const r = data as { id: string; codice: string };
   return { ...p, id: r.id, codice: r.codice, creataIl: new Date().toISOString() };
+}
+
+export class InvitoGiaConfermato extends Error {
+  constructor() {
+    super("invito_gia_confermato");
+  }
+}
+
+export interface InvitoAperto {
+  nome: string;
+  persone_previste: number | null;
+  prenotazione: PrenotazioneSalvata | null;
+}
+
+/** Legge il token dall'indirizzo (?i=…). */
+export function tokenDallUrl(): string | null {
+  const t = new URLSearchParams(window.location.search).get("i");
+  return t && /^[0-9a-z]{6,12}$/i.test(t.trim()) ? t.trim().toLowerCase() : null;
+}
+
+/** null = link sconosciuto; "revocato" = invito ritirato dagli sposi. */
+export async function apriInvito(token: string): Promise<InvitoAperto | "revocato" | null> {
+  if (!supabase) {
+    try {
+      const inviti = JSON.parse(localStorage.getItem(CHIAVE_DEMO_INVITI) || "[]") as { token: string; nome: string; persone_previste: number | null; revocato: boolean }[];
+      const i = inviti.find((x) => x.token === token);
+      if (!i) return null;
+      if (i.revocato) return "revocato";
+      localStorage.setItem(CHIAVE_DEMO_INVITI, JSON.stringify(inviti.map((x) => (x === i ? { ...x, aperto_il: (x as { aperto_il?: string }).aperto_il ?? new Date().toISOString() } : x))));
+      const p = leggiDemo().find((x) => x.invito === token) ?? null;
+      return { nome: i.nome, persone_previste: i.persone_previste, prenotazione: p };
+    } catch {
+      return null;
+    }
+  }
+  const { data, error } = await supabase.rpc("apri_invito", { p_token: token });
+  if (error) throw error;
+  if (!data) return null;
+  if ((data as { revocato?: boolean }).revocato) return "revocato";
+  return data as InvitoAperto;
 }
 
 /** Accetta "ar 7kq2mx", "AR7KQ2MX", "7KQ2MX"… e restituisce "AR-7KQ2MX". */

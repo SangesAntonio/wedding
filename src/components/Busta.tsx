@@ -4,7 +4,7 @@ import { riduciMovimento, vibra } from "../lib/calendario";
 import { Filigrana, Stelle } from "./Ornamenti";
 
 /** La busta con il sigillo di ceralacca che si apre all'avvio. */
-export function Busta({ onFine }: { onFine: () => void }) {
+export function Busta({ onFine, destinatario }: { onFine: () => void; destinatario?: string }) {
   const [stato, setStato] = useState<"chiusa" | "aperta" | "via">("chiusa");
 
   const apri = () => {
@@ -55,6 +55,7 @@ export function Busta({ onFine }: { onFine: () => void }) {
           <span className="cifra">{SPOSI.iniziali}</span>
         </div>
       </div>
+      {destinatario && <p className="busta-destinatario">per {destinatario}</p>}
       <p className="busta-invito">Toccate il sigillo</p>
     </div>
   );

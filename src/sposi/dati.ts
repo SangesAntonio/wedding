@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { POSTI_PER_ID, SETTORI, SUPPLEMENTI } from "../data/sala";
+import type { PrenotazioneSalvata } from "../lib/prenotazioni";
 
 export type Stato = "confermata" | "da_verificare" | "annullata";
 export type Richiamo = "da_sentire" | "confermato" | "non_viene" | "non_risponde";
@@ -48,7 +49,7 @@ export async function caricaMatrimonio(): Promise<{ id: string; slug: string } |
 }
 
 export async function caricaPrenotazioni(matrimonioId: string): Promise<Prenotazione[]> {
-  if (!supabase) return prenotazioniDemo();
+  if (!supabase) return [...prenotazioniDalSitoDemo(), ...(demo ??= prenotazioniDemo())].map((p) => ({ ...p }));
   const { data, error } = await supabase
     .from("prenotazioni")
     .select("id, creata_il, modificata_il, nome, contatto, note, persone, posti, supplementi, totale, codice, stato, richiamo, richiamo_il, nota_sposi, invito_id")
@@ -56,6 +57,16 @@ export async function caricaPrenotazioni(matrimonioId: string): Promise<Prenotaz
     .order("creata_il", { ascending: false });
   if (error) throw error;
   return (data ?? []) as Prenotazione[];
+}
+
+export async function aggiornaPrenotazione(id: string, modifiche: Partial<Prenotazione>): Promise<void> {
+  if (!supabase) {
+    modificheDemo.set(id, { ...modificheDemo.get(id), ...modifiche });
+    demo = (demo ??= prenotazioniDemo()).map((p) => (p.id === id ? { ...p, ...modifiche } : p));
+    return;
+  }
+  const { error } = await supabase.from("prenotazioni").update(modifiche).eq("id", id);
+  if (error) throw error;
 }
 
 /** Richiama `onCambio` quando cambia qualcosa (nuove conferme, annullamenti). */
@@ -123,6 +134,42 @@ export function scaricaCsv(righe: Prenotazione[]) {
 }
 
 // ------------------------------------------------------------ dati finti per "npm run demo"
+let demo: Prenotazione[] | undefined;
+const modificheDemo = new Map<string, Partial<Prenotazione>>();
+
+/** Le prenotazioni fatte dall'invito in modalità demo (stesso browser), collegate agli inviti demo. */
+function prenotazioniDalSitoDemo(): Prenotazione[] {
+  try {
+    const sito = JSON.parse(localStorage.getItem("invito-ar:demo-prenotazioni") || "[]") as (PrenotazioneSalvata & { invito?: string })[];
+    const inviti = JSON.parse(localStorage.getItem("invito-ar:demo-inviti") || "[]") as { id: string; token: string }[];
+    return sito
+      .map((p): Prenotazione => {
+        const invito = p.invito ? inviti.find((i) => i.token === p.invito) : undefined;
+        return {
+          id: p.id,
+          creata_il: p.creataIl,
+          modificata_il: null,
+          nome: p.nome,
+          contatto: p.contatto || null,
+          note: p.note || null,
+          persone: p.posti.length,
+          posti: p.posti,
+          supplementi: p.supplementi,
+          totale: p.totale,
+          codice: p.codice,
+          stato: invito ? "confermata" : "da_verificare",
+          richiamo: "da_sentire",
+          richiamo_il: null,
+          nota_sposi: null,
+          invito_id: invito?.id ?? null,
+          ...modificheDemo.get(p.id),
+        };
+      })
+      .reverse();
+  } catch {
+    return [];
+  }
+}
 function prenotazioniDemo(): Prenotazione[] {
   const ora = Date.now();
   const p = (i: number, nome: string, posti: string[], extra: Partial<Prenotazione> = {}): Prenotazione => ({

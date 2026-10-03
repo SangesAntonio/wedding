@@ -30,7 +30,7 @@ Quando l'IBAN è quello vero mettete `IBAN_DI_ESEMPIO = false`.
 
 1. Create un account su https://supabase.com e un nuovo progetto (regione: Frankfurt/EU).
 2. **SQL Editor → New query**: incollate tutto [supabase/schema.sql](supabase/schema.sql) e premete **Run**.
-   Poi, nell'ordine, le migrazioni successive: [migrazione-03-area-sposi.sql](supabase/migrazione-03-area-sposi.sql).
+   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql).
    Se il database era stato creato con la primissima versione, prima della 03 eseguite [migrazione-02-codice.sql](supabase/migrazione-02-codice.sql).
 3. **Project Settings → API**: copiate *Project URL* e la chiave *anon public*.
 4. Copiate `.env.example` in `.env` e incollate i due valori. Riavviate `npm run dev`.
@@ -50,8 +50,13 @@ li vedete solo voi dalla dashboard; con il codice l'invitato rivede solo la prop
 
 ## Area sposi
 
-Pagina `/sposi/` (es. `https://TUONOME.github.io/NOME-REPO/sposi/`), con login: elenco delle conferme,
-totali, filtri, ricerca, contatti cliccabili (chiama, WhatsApp, email) ed esportazione CSV per Excel.
+Pagina `/sposi/` (es. `https://TUONOME.github.io/NOME-REPO/sposi/`), con login e due schede:
+
+- **Conferme**: totali, filtri, ricerca, contatti cliccabili (chiama, WhatsApp, email), esportazione CSV;
+  le conferme arrivate dal link generico sono *da verificare* (Approva / Collega a un invito / Non la conosciamo).
+- **Invitati**: lista delle famiglie con il loro **link personale** (`…/?i=TOKEN`). Inserimento a mano o da Excel
+  (scaricate il modello, compilatelo, caricatelo), invio su WhatsApp con messaggio già pronto, anche **in sequenza**,
+  e stato di ogni invito: da inviare, inviato, aperto, confermato. Il testo del messaggio si cambia da *Messaggio*.
 Con `npm run demo` si apre su http://localhost:5174/sposi/ con dati finti, senza login.
 
 Configurazione, una volta sola:
