@@ -49,6 +49,12 @@ li vedete solo voi dalla dashboard; con il codice l'invitato rivede solo la prop
 
 ## Ricevere un'email a ogni conferma
 
+**Via più semplice, con il vostro Gmail:** Google Apps Script. Niente Resend né password: seguite le istruzioni
+in cima a [supabase/notifica-google-apps-script.js](supabase/notifica-google-apps-script.js) (5 passi, ~5 minuti).
+Nei log del webhook Supabase può comparire un codice 302: è normale, l'email parte lo stesso.
+
+**In alternativa, con Resend:**
+
 Percorso: nuova riga in `prenotazioni` → *Database Webhook* di Supabase → Edge Function
 [notifica-prenotazione](supabase/functions/notifica-prenotazione/index.ts) → Resend → la vostra casella.
 Tutto dalla dashboard, senza terminale:
