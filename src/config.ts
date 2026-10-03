@@ -9,10 +9,10 @@ export const SPOSI = {
 };
 
 // Mese 0-based: 6 = luglio
-export const DATA_EVENTO = new Date(2027, 6, 3, 17, 0, 0);
-export const DATA_ESTESA = "Sabato 3 luglio 2027";
-export const DATA_ROMANA = "3 · VII · MMXXVII";
-export const DATA_BREVE = "03.07.27";
+export const DATA_EVENTO = new Date(2027, 6, 20, 17, 0, 0);
+export const DATA_ESTESA = "Martedì 20 luglio 2027";
+export const DATA_ROMANA = "20 · VII · MMXXVII";
+export const DATA_BREVE = "20.07.27";
 export const ORARIO = "Ore 17:00 · cerimonia, cena e balli fino a tardi";
 export const DURATA_ORE = 9;
 

@@ -21,7 +21,7 @@ export type NuovoInvito = Pick<Invito, "nome" | "telefono" | "email" | "persone_
 const CAMPI = "id, token, nome, telefono, email, persone_previste, nota_sposi, inviato_il, aperto_il, revocato, creato_il";
 
 export const MESSAGGIO_PREDEFINITO =
-  "Ciao {nome}! 💍\nAntonio e Rosa si sposano sabato 3 luglio 2027.\nQui trovate il vostro invito, potete scegliere i posti e confermare: {link}";
+  "Ciao {nome}! 💍\nAntonio e Rosa si sposano martedì 20 luglio 2027.\nQui trovate il vostro invito, potete scegliere i posti e confermare: {link}";
 
 // ------------------------------------------------------------ modalità demo (localStorage, condiviso con l'invito)
 const leggiDemo = (): Invito[] => {
