@@ -38,6 +38,7 @@ import {
   type InvitoAperto,
   ricordaMiaPrenotazione,
   salvaPrenotazione,
+  type Ospite,
   type PrenotazioneSalvata,
 } from "./lib/prenotazioni";
 import { scaricaEventoCalendario, vibra } from "./lib/calendario";
@@ -92,6 +93,9 @@ export default function App() {
   const [contatto, setContatto] = useState("");
   const [note, setNote] = useState("");
   const [erroreNome, setErroreNome] = useState("");
+  // nome di ogni ospite, per posto
+  const [ospiti, setOspiti] = useState<Record<string, Ospite>>({});
+  const [erroreOspiti, setErroreOspiti] = useState(false);
   const [avviso, setAvviso] = useState("");
   const [vista, setVista] = useState<"3d" | "elenco">("3d");
   const [quanti, setQuanti] = useState(2);
@@ -246,13 +250,23 @@ export default function App() {
     setStep(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  const nomeOspite = (id: string) => ospiti[id]?.nome.trim() ?? "";
   const avanti = () => {
     if (step === 2 && !nome.trim()) {
-      setErroreNome("Serve un nome, altrimenti i segnaposto restano vuoti.");
+      setErroreNome("Serve un nome per il biglietto.");
       document.getElementById("nome")?.focus();
       return;
     }
+    if (step === 2) {
+      const vuoto = selezione.find((p) => !nomeOspite(p.id));
+      if (vuoto) {
+        setErroreOspiti(true);
+        document.getElementById("ospite-" + vuoto.id)?.focus();
+        return;
+      }
+    }
     setErroreNome("");
+    setErroreOspiti(false);
     vaiA(Math.min(3, step + 1));
   };
   const indietro = () => vaiA(Math.max(0, step - 1));
@@ -272,6 +286,7 @@ export default function App() {
         contatto: contatto.trim(),
         note: note.trim(),
         posti: selezione.map((s) => s.id),
+        ospiti: selezione.map((s) => ({ nome: nomeOspite(s.id), bambino: !!ospiti[s.id]?.bambino })),
         supplementi,
         totale,
         invito: invito ? token : null,
@@ -301,6 +316,7 @@ export default function App() {
     setNome(p.nome);
     setContatto(p.contatto);
     setNote(p.note);
+    setOspiti(Object.fromEntries((p.ospiti ?? []).map((o, i) => [p.posti[i], o])));
     setConfermata(p);
     vaiA(3);
   };
@@ -335,6 +351,7 @@ export default function App() {
     setNome("");
     setContatto("");
     setNote("");
+    setOspiti({});
     vaiA(1);
   };
 
@@ -641,7 +658,7 @@ export default function App() {
               </div>
 
               <label htmlFor="nome" className="etichetta blocco">
-                Nome e cognome / nome della famiglia
+                {prezzati.length > 1 ? "Nome della famiglia o del gruppo" : "Nome e cognome"}
               </label>
               <input
                 id="nome"
@@ -660,7 +677,45 @@ export default function App() {
                 style={{ borderColor: erroreNome ? SETTORI.vicino.col : undefined }}
               />
               <p className="aiuto" style={{ color: erroreNome ? SETTORI.vicino.col : undefined }}>
-                {erroreNome || "Un nome solo per tutti i posti scelti: basta quello per i segnaposto."}
+                {erroreNome || "Compare sul biglietto e nella causale."}
+              </p>
+
+              <p className="etichetta blocco">Chi viene · un nome per ogni posto</p>
+              <div className="card ospiti">
+                {selezione.map((p, i) => {
+                  const o = ospiti[p.id] ?? { nome: "", bambino: false };
+                  const manca = erroreOspiti && !o.nome.trim();
+                  const aggiorna = (m: Partial<Ospite>) => {
+                    setOspiti((x) => ({ ...x, [p.id]: { ...o, ...m } }));
+                    if (erroreOspiti) setErroreOspiti(false);
+                  };
+                  return (
+                    <div key={p.id} className="ospite-riga">
+                      <label htmlFor={"ospite-" + p.id} className="ospite-posto">
+                        <Foglia size={11} color={SETTORI[p.set].col} /> {p.tav}-{p.num}
+                      </label>
+                      <input
+                        id={"ospite-" + p.id}
+                        value={o.nome}
+                        onChange={(e) => aggiorna({ nome: e.target.value })}
+                        placeholder={i === 0 ? "Nome e cognome" : `Ospite ${i + 1}`}
+                        className="campo"
+                        autoCapitalize="words"
+                        autoComplete="off"
+                        enterKeyHint={i < selezione.length - 1 ? "next" : "done"}
+                        maxLength={80}
+                        aria-invalid={manca}
+                        style={{ borderColor: manca ? SETTORI.vicino.col : undefined }}
+                      />
+                      <button type="button" className={"chip-bimbo" + (o.bambino ? " on" : "")} aria-pressed={o.bambino} onClick={() => aggiorna({ bambino: !o.bambino })} title="Bambino">
+                        {o.bambino && <Check size={12} strokeWidth={3} />} bimbo
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="aiuto" style={{ color: erroreOspiti ? SETTORI.vicino.col : undefined }}>
+                {erroreOspiti ? "Manca qualche nome: serve per i segnaposto." : "Segnate \"bimbo\" per i bambini: ci aiuta con il menù e i seggioloni."}
               </p>
 
               <label htmlFor="contatto" className="etichetta blocco">
@@ -678,9 +733,9 @@ export default function App() {
               />
 
               <label htmlFor="note" className="etichetta blocco">
-                Allergie, intolleranze, bambini · facoltativo
+                Allergie, intolleranze · facoltativo
               </label>
-              <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Es. un vegetariano, una seggiolina per la piccola" className="campo campo-note" rows={3} maxLength={600} />
+              <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Es. Anna è celiaca, Luca non mangia pesce" className="campo campo-note" rows={3} maxLength={600} />
 
               <p className="etichetta blocco">Supplementi facoltativi · una volta per prenotazione</p>
               <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -739,10 +794,20 @@ export default function App() {
                     <div key={p.id} className="voce bordo">
                       <span className="voce-n">
                         <Foglia size={12} color={SETTORI[p.set].col} />
-                        <span>
-                          Tavolo {p.tav} · posto {p.num}
-                          <i>{SETTORI[p.set].nome}</i>
-                        </span>
+                        {nomeOspite(p.id) ? (
+                          <span>
+                            {nomeOspite(p.id)}
+                            {ospiti[p.id]?.bambino && <em className="bimbo">bimbo</em>}
+                            <i>
+                              Tavolo {p.tav} · posto {p.num} · {SETTORI[p.set].nome}
+                            </i>
+                          </span>
+                        ) : (
+                          <span>
+                            Tavolo {p.tav} · posto {p.num}
+                            <i>{SETTORI[p.set].nome}</i>
+                          </span>
+                        )}
                       </span>
                       <span className="voce-p">
                         {p.sconto && <s>{p.pieno} €</s>}

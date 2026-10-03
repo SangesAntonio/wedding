@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
     ["Stato", daVerificare ? "Da verificare (arrivata dal link generico)" : "Confermata dal link personale"],
     ["Nome", p.nome],
     ["Persone", String(p.persone)],
+    ["Ospiti", (p.ospiti ?? []).map((o: { nome: string; bambino?: boolean }) => o.nome + (o.bambino ? " (bimbo)" : "")).join(", ") || "—"],
     ["Posti", (p.posti ?? []).join(", ")],
     ["Contatto", p.contatto || "—"],
     ["Note", p.note || "—"],

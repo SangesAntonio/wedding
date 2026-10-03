@@ -4,8 +4,15 @@ import { MODALITA_DEMO, supabase } from "./supabase";
 
 export { MODALITA_DEMO };
 
+export interface Ospite {
+  nome: string;
+  bambino: boolean;
+}
+
 export interface NuovaPrenotazione {
   nome: string;
+  /** uno per posto, nello stesso ordine di `posti` */
+  ospiti: Ospite[];
   contatto: string;
   note: string;
   posti: string[];
@@ -98,6 +105,7 @@ export async function salvaPrenotazione(p: NuovaPrenotazione): Promise<Prenotazi
     p_supplementi: p.supplementi,
     p_totale: p.totale,
     p_invito: p.invito || null,
+    p_ospiti: p.ospiti,
   });
   if (error) {
     if (error.message.includes("invito_gia_confermato")) throw new InvitoGiaConfermato();
