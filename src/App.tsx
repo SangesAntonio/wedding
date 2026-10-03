@@ -30,6 +30,7 @@ import {
   ascoltaOccupati,
   caricaOccupati,
   cercaPrenotazione,
+  dimenticaMiaPrenotazione,
   leggiMiaPrenotazione,
   ricordaMiaPrenotazione,
   salvaPrenotazione,
@@ -76,7 +77,9 @@ function CaricoSala() {
 }
 
 export default function App() {
-  const salvata = useMemo(leggiMiaPrenotazione, []);
+  // prenotazione ricordata da questo browser (localStorage), ricontrollata sul database all'avvio
+  const [salvata, setSalvata] = useState(leggiMiaPrenotazione);
+  const [altroCodice, setAltroCodice] = useState(false);
   const [busta, setBusta] = useState(true);
   const [step, setStep] = useState(0);
   const [selezione, setSelezione] = useState<Posto[]>([]);
@@ -99,6 +102,25 @@ export default function App() {
   const [erroreCodice, setErroreCodice] = useState("");
   const [codiceCopiato, setCodiceCopiato] = useState(false);
   const azioniSala = useRef<AzioniSala | null>(null);
+
+  // se la prenotazione ricordata è stata cancellata dal database, la dimentichiamo
+  useEffect(() => {
+    const ricordata = leggiMiaPrenotazione();
+    if (!ricordata) return;
+    cercaPrenotazione(ricordata.codice)
+      .then((p) => {
+        if (p) {
+          ricordaMiaPrenotazione(p);
+          setSalvata(p);
+        } else {
+          dimenticaMiaPrenotazione();
+          setSalvata(null);
+        }
+      })
+      .catch(() => {
+        /* senza rete teniamo quella ricordata */
+      });
+  }, []);
 
   // la sala 3D si scarica in sottofondo mentre si legge l'invito
   useEffect(() => {
@@ -225,6 +247,7 @@ export default function App() {
       vibra([10, 40, 10, 40, 30]);
       setConfermata(p);
       ricordaMiaPrenotazione(p);
+      setSalvata(p);
       aggiornaOccupati();
     } catch {
       setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
@@ -255,6 +278,8 @@ export default function App() {
         return;
       }
       ricordaMiaPrenotazione(p);
+      setSalvata(p);
+      setAltroCodice(false);
       setCodiceCercato("");
       apriPrenotazione(p);
     } catch {
@@ -353,7 +378,7 @@ export default function App() {
                 </div>
               </section>
 
-              {mia ? (
+              {mia && !altroCodice ? (
                 <section className="card nota-famiglia nota-salvata">
                   <div className="pastiglia" style={{ background: COLORI.bosco }}>
                     <Check size={15} color={COLORI.carta} />
@@ -364,9 +389,14 @@ export default function App() {
                       {mia.posti.length === 1 ? "1 persona" : `${mia.posti.length} persone`} · codice {mia.codice}
                     </p>
                   </div>
-                  <button className="bottoncino" onClick={() => apriPrenotazione(mia)}>
-                    Biglietto
-                  </button>
+                  <div className="salvata-azioni">
+                    <button className="bottoncino" onClick={() => apriPrenotazione(mia)}>
+                      Biglietto
+                    </button>
+                    <button className="link" onClick={() => setAltroCodice(true)}>
+                      Altro codice?
+                    </button>
+                  </div>
                 </section>
               ) : (
                 <form className="card ritrova" onSubmit={ritrova}>
@@ -396,6 +426,11 @@ export default function App() {
                     </button>
                   </div>
                   {erroreCodice && <p className="aiuto errore">{erroreCodice}</p>}
+                  {mia && (
+                    <button type="button" className="link" style={{ padding: 0, marginTop: 10 }} onClick={() => setAltroCodice(false)}>
+                      Torna alla prenotazione di {mia.nome}
+                    </button>
+                  )}
                 </form>
               )}
 

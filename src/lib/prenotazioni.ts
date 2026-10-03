@@ -136,3 +136,11 @@ export function leggiMiaPrenotazione(): PrenotazioneSalvata | null {
     return null;
   }
 }
+
+export function dimenticaMiaPrenotazione() {
+  try {
+    localStorage.removeItem(CHIAVE_MIA);
+  } catch {
+    /* ignora */
+  }
+}
