@@ -105,36 +105,82 @@ Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli inv
 - [x] Link generico: le conferme entrano come **da verificare**; nell'area sposi le approvate o le collegate a un invito
 - [x] Token sconosciuto o revocato → messaggio gentile "questo invito non è più valido, scriveteci"
 
-### Fase 3 — Seconda conferma e gestione dagli sposi
-- [ ] Su ogni riga: stato del richiamo con un tocco (confermato / non viene / non risponde) + data automatica
-- [ ] Nota privata degli sposi ("richiamare dopo il 20", "porta la torta")
-- [ ] Modifica di una prenotazione: nome, persone, posti, contatto, note
-- [ ] Annulla / ripristina
-- [ ] Aggiungi prenotazione a mano (chi conferma per telefono) con codice generato
-- [ ] Ogni modifica finisce nello `storico`
+> **Da qui l'ordine cambia.** Le funzioni ci sono quasi tutte; il limite ora è l'interfaccia dell'area sposi
+> (schede troppo grandi per 50 famiglie e 100+ persone, aspetto poco professionale). Prima si rifà la base grafica
+> e la tabella, poi le funzioni mancanti si costruiscono direttamente sulla base nuova, senza rifarle due volte.
 
-### Fase 4 — Gli invitati gestiscono la propria prenotazione
-- [ ] Dal biglietto (con codice o dal browser che la ricorda): **Modifica** e **Annulla presenza**
-- [ ] Modifiche possibili: aggiungere o togliere persone, cambiare sedie, contatto e note
-- [ ] Annullare non cancella: stato `annullata`, ripristinabile dagli sposi
-- [ ] Modifiche fino a **10 giorni prima**, controllate dal database; dopo si vede "per modifiche scriveteci" e modificano solo gli sposi
-- [ ] Funzioni SQL `modifica_prenotazione(codice, …)` e `annulla_prenotazione(codice)`, con controlli lato database
-- [ ] Email agli sposi anche su modifica e annullamento ("Famiglia Esposito: da 4 a 3 persone")
-- [ ] Con il link personale non serve il codice; il codice `AR-XXXXXX` resta per chi ha confermato dal link generico
+### Fase A — Nuova base dell'area sposi
+Solo `/sposi/`: l'invito per gli ospiti mantiene il suo stile, che è già curato.
+- [ ] Stack (vedi *Frontend dell'area sposi* sotto): Tailwind CSS 4 + componenti **shadcn/ui** (Radix), solo nel bundle `/sposi/`
+- [ ] Temi: colori dell'invito (avorio, salvia, bosco, oro) come variabili; chiaro e scuro; Cormorant per i titoli, Inter per l'interfaccia
+- [ ] Struttura: barra laterale su computer, barra in basso su telefono; pagine **Panoramica · Ospiti · Impostazioni**
+- [ ] Componenti base: pulsanti, campi, badge di stato, menu, finestre, pannello laterale (computer) / foglio dal basso (telefono), notifiche
+- [ ] Ricerca rapida `Ctrl+K` / tocco sulla lente: trova una famiglia da qualunque pagina
+- [ ] Installabile come app (PWA): icona sulla schermata del telefono, apertura a tutto schermo
+- [ ] Le funzioni di oggi (login, inviti, Excel, WhatsApp, verifica) portate sulla base nuova senza perderne nessuna
 
-### Fase 5 — Impostazioni modificabili
-- [ ] `matrimoni.config` con lo stesso formato di `config.ts` + `sala.ts`, validato
-- [ ] L'invito legge le impostazioni dal database (con le attuali come riserva se il database non risponde)
-- [ ] Editor nell'area sposi, a sezioni: sposi e date · luogo (con ricerca sulla mappa) · IBAN · testi · settori e prezzi · supplementi · posti sempre liberi · scadenza modifiche
-- [ ] Anteprima dell'invito prima di salvare
-- [ ] Tavoli e disposizione della sala: per ora restano nel codice *(editor visuale = progetto a sé)*
+### Fase B — Tabella "Ospiti" compatta
+Una riga per famiglia (~44 px su computer), al posto di schede separate per inviti e conferme.
+- [ ] **Una sola vista**: invito + prenotazione sulla stessa riga; le conferme dal link generico compaiono come righe "da verificare"
+- [ ] Colonne: famiglia · stato (inviato / aperto / confermato / annullato / da verificare) · persone (previste → confermate) · telefono · seconda conferma · note · ultimo aggiornamento
+- [ ] Ordinamento per colonna, filtri rapidi a "pillole" con i conteggi, ricerca, colonne da mostrare/nascondere, densità comoda/compatta
+- [ ] Selezione multipla con azioni di gruppo: invia in sequenza solo ai selezionati, segna inviato, revoca, esporta
+- [ ] Clic su una riga → pannello di dettaglio (dati, prenotazione, posti, storico, azioni) senza lasciare la tabella
+- [ ] Su telefono: righe compatte a due linee (nome + stato, persone + telefono), tocco → foglio dal basso
+- [ ] Intestazione fissa; elenco virtualizzato se si superano qualche centinaio di righe
+- [ ] **Panoramica**: numeri principali, risposte nel tempo (grafico), lista "da fare" (da verificare, senza risposta da 7 giorni, da risentire)
 
-### Fase 6 — Rifiniture e lancio
-- [ ] Immagine di anteprima per WhatsApp
-- [ ] IBAN vero
-- [ ] Dominio vostro + HTTPS + URL aggiornati in Supabase Auth
-- [ ] *(facoltativo)* Email di conferma all'invitato con il codice (richiede dominio verificato su Resend)
+### Fase C — Gestione completa dagli sposi *(ex Fase 3)*
+Tutto dentro il pannello di dettaglio della tabella.
+- [ ] Seconda conferma con un tocco (riconfermato / non viene / non risponde) + data automatica
+- [ ] Nota privata degli sposi
+- [ ] Modifica prenotazione: nome, persone, posti, contatto, note; annulla / ripristina
+- [ ] Aggiungi prenotazione a mano (chi conferma per telefono)
+- [ ] Storico leggibile come linea del tempo ("3 ott · Famiglia Esposito ha confermato 4 persone", "5 ott · Voi: riconfermato")
+
+### Fase D — Gli invitati modificano la propria prenotazione *(ex Fase 4)*
+- [ ] Dal biglietto (link personale o codice): **Modifica** (persone, sedie, contatto, note) e **Annulla presenza**
+- [ ] Fino a **10 giorni prima**, controllato dal database; poi "per modifiche scriveteci" e modificano solo gli sposi
+- [ ] Funzioni SQL `modifica_prenotazione` e `annulla_prenotazione`, con storico automatico
+- [ ] Email agli sposi su modifica e annullamento ("Famiglia Esposito: da 4 a 3 persone")
+
+### Fase E — Personalizzazione del matrimonio *(ex Fase 5)*
+- [ ] `matrimoni.config` validato con uno schema; l'invito lo legge dal database (con `config.ts` come riserva)
+- [ ] Pagina **Impostazioni** a sezioni: sposi e data · luogo (ricerca sulla mappa) · IBAN · testi dell'invito · messaggio WhatsApp · settori, prezzi e supplementi · posti sempre liberi · scadenza modifiche
+- [ ] Moduli con validazione e salvataggio sicuro; **anteprima dal vivo** dell'invito accanto al modulo
+- [ ] Tavoli e disposizione della sala: restano nel codice *(editor visuale = progetto a sé)*
+
+### Fase F — Rifiniture e lancio *(ex Fase 6)*
+- [ ] Immagine di anteprima per WhatsApp · IBAN vero · dominio vostro (+ URL in Supabase Auth)
+- [ ] Test automatici dei percorsi principali (Playwright): conferma da link personale, link generico, login sposi, import Excel
+- [ ] *(facoltativo)* Email di conferma all'invitato con il codice (serve un dominio verificato su Resend)
 - [ ] Prova completa da 2–3 telefoni diversi
+
+---
+
+## Frontend dell'area sposi
+
+| Tema | Scelta | Perché |
+|---|---|---|
+| Stile | **Tailwind CSS 4**, caricato solo in `/sposi/` | Veloce da mantenere, coerente; non tocca l'invito degli ospiti |
+| Componenti | **shadcn/ui** (su Radix UI): Button, Input, Select, Dialog, Sheet, DropdownMenu, Tabs, Tooltip, Badge, Command… | Aspetto moderno e sobrio, accessibili da tastiera e lettori di schermo; il codice dei componenti entra nel progetto e si adatta ai nostri colori |
+| Tabella | **TanStack Table** (+ TanStack Virtual se servono molte righe) | Ordinamento, filtri, selezione, colonne configurabili; nessun aspetto imposto |
+| Foglio dal basso su telefono | **Vaul** | Gesto naturale da app, si chiude trascinando |
+| Notifiche | **Sonner** | Messaggi brevi ("Invito copiato") con annulla |
+| Ricerca rapida | **cmdk** | `Ctrl+K` su computer, lente su telefono |
+| Moduli | **React Hook Form + Zod** | Validazione chiara, stessa regola usata per salvare le impostazioni |
+| Navigazione | **React Router** (pagine `/sposi/#/ospiti`, `#/impostazioni`) | Link diretti alle pagine; funziona su GitHub Pages senza configurazioni |
+| Grafici | **Recharts** (solo Panoramica) | Leggero quanto basta per due grafici |
+| Icone | **Lucide** (già in uso) | Coerenti con l'invito |
+| App sul telefono | **PWA** subito; **Capacitor** in futuro per App Store/Play Store con lo stesso codice | Nessuna riscrittura in React Native |
+
+Alternativa valutata: **Mantine** (libreria completa, più pronta all'uso ma più pesante e meno personalizzabile). MUI e Ant Design sono scartati: aspetto da gestionale.
+
+### Linee guida
+- **Telefono prima**: ogni azione si fa con un pollice; obiettivi di tocco ≥ 44 px; niente tabelle larghe su schermi stretti.
+- **Densità**: su computer una famiglia per riga, almeno 15 righe visibili senza scorrere.
+- **Una sola fonte di dati**: le pagine leggono da un unico archivio (TanStack Query) che si aggiorna in tempo reale.
+- **Prestazioni**: `/sposi/` resta separato dall'invito; le parti pesanti (Excel, grafici) si caricano solo quando servono.
 
 ### Dopo il matrimonio — verso la piattaforma
 - Pulsante "confermo di nuovo" per gli invitati (seconda conferma in autonomia)
@@ -150,7 +196,8 @@ Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli inv
 
 | Tema | Decisione |
 |---|---|
-| Login sposi | Email + password, più "Accedi con Google" |
+| Login sposi | Email + password; "Accedi con Google" più avanti |
+| Area sposi | Vista tabellare compatta e base grafica nuova **prima** delle funzioni mancanti |
 | Invitati aggiungono persone | Sì, liberamente (massimo tecnico 12). Il numero nel file è **indicativo**: nell'area sposi compare "+2 rispetto al previsto" |
 | Scadenza modifiche invitati | **10 giorni prima** del matrimonio; dopo, modificano solo gli sposi |
 | Annullamento | Non cancella: la prenotazione resta con stato `annullata` e si può ripristinare |
@@ -158,6 +205,7 @@ Migrazione [`03`](../supabase/migrazione-03-area-sposi.sql), invisibile agli inv
 | Link inoltrati | Link personali per famiglia + link generico con stato "da verificare" |
 | Lista invitati | Inserimento a mano **e** caricamento Excel da un modello scaricabile (famiglia, telefono, email, persone previste, note) |
 | Invio inviti | Con telefono: WhatsApp con messaggio pronto e invio in sequenza. Sempre: copia link manuale |
+| Data | Martedì 20 luglio 2027, ore 17:00 |
 | Saluto personale | Chi apre il suo link vede "per Famiglia Esposito" sulla busta e "Ciao Famiglia Esposito" come titolo |
 
 ## Domande aperte
