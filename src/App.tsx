@@ -1,0 +1,751 @@
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Box, CalendarPlus, Check, Copy, LayoutGrid, Lock, MapPin, Navigation, User, X } from "lucide-react";
+import {
+  DATA_BREVE,
+  DATA_ESTESA,
+  DATA_EVENTO,
+  IBAN,
+  IBAN_DI_ESEMPIO,
+  LUOGO,
+  MAX_POSTI_PER_PRENOTAZIONE,
+  ORARIO,
+  SCONTO_FAMIGLIA,
+  SPOSI,
+} from "./config";
+import {
+  COLORI,
+  ORDINE_SETTORI,
+  POSTI_PER_ID,
+  POSTI_PRENOTABILI,
+  SETTORI,
+  SUPPLEMENTI,
+  prezza,
+  trovaPostiVicini,
+  type Occupati,
+  type Posto,
+} from "./data/sala";
+import {
+  MODALITA_DEMO,
+  PostiGiaPresi,
+  ascoltaOccupati,
+  caricaOccupati,
+  leggiMiaPrenotazione,
+  ricordaMiaPrenotazione,
+  salvaPrenotazione,
+  type PrenotazioneSalvata,
+} from "./lib/prenotazioni";
+import { scaricaEventoCalendario, vibra } from "./lib/calendario";
+import { Busta } from "./components/Busta";
+import { ElencoPosti } from "./components/ElencoPosti";
+import { Angolo, Filigrana, Foglia, Stelle, useNumeroAnimato } from "./components/Ornamenti";
+import type { AzioniSala } from "./components/Sala3D";
+
+const Sala3D = lazy(() => import("./components/Sala3D"));
+const ComeArrivare = lazy(() => import("./components/ComeArrivare"));
+
+const PASSI = ["Invito", "Posti", "Nome", "Biglietti"];
+const SCONTO_PCT = Math.round(SCONTO_FAMIGLIA * 100);
+const PREZZI = ORDINE_SETTORI.map((k) => SETTORI[k].prezzo);
+
+function Passi({ step }: { step: number }) {
+  return (
+    <ol className="passi" aria-label="Avanzamento">
+      {PASSI.map((t, i) => (
+        <li key={t} className="passo" aria-current={i === step ? "step" : undefined}>
+          <span className={"gemma-passo" + (i < step ? " fatto" : i === step ? " attivo" : "")}>
+            <span>{i < step ? <Check size={11} strokeWidth={3} /> : i + 1}</span>
+          </span>
+          <span className="passo-lab" style={{ color: i === step ? COLORI.inchiostro : "#ADA795", fontWeight: i === step ? 600 : 400 }}>
+            {t}
+          </span>
+          {i < PASSI.length - 1 && <span className="passo-linea" />}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function CaricoSala() {
+  return (
+    <div className="scena scena-carico">
+      <Foglia size={22} color={COLORI.salvia} />
+      <p>Preparo la sala…</p>
+    </div>
+  );
+}
+
+export default function App() {
+  const salvata = useMemo(leggiMiaPrenotazione, []);
+  const [busta, setBusta] = useState(true);
+  const [step, setStep] = useState(0);
+  const [selezione, setSelezione] = useState<Posto[]>([]);
+  const [supplementi, setSupplementi] = useState<string[]>([]);
+  const [nome, setNome] = useState("");
+  const [contatto, setContatto] = useState("");
+  const [note, setNote] = useState("");
+  const [erroreNome, setErroreNome] = useState("");
+  const [avviso, setAvviso] = useState("");
+  const [vista, setVista] = useState<"3d" | "elenco">("3d");
+  const [quanti, setQuanti] = useState(2);
+  const [delta, setDelta] = useState<{ v: number; k: number } | null>(null);
+  const [copiato, setCopiato] = useState(false);
+  const [occupati, setOccupati] = useState<Occupati>(new Map());
+  const [mappa, setMappa] = useState(false);
+  const [invio, setInvio] = useState(false);
+  const [confermata, setConfermata] = useState<PrenotazioneSalvata | null>(null);
+  const azioniSala = useRef<AzioniSala | null>(null);
+
+  // la sala 3D si scarica in sottofondo mentre si legge l'invito
+  useEffect(() => {
+    const t = setTimeout(() => import("./components/Sala3D"), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // posti occupati: carica + tempo reale
+  const aggiornaOccupati = useCallback(async () => {
+    try {
+      setOccupati(await caricaOccupati());
+    } catch {
+      setAvviso("Non riesco a leggere i posti liberi. Controllate la connessione e riprovate.");
+    }
+  }, []);
+  useEffect(() => {
+    aggiornaOccupati();
+    const stop = ascoltaOccupati(aggiornaOccupati);
+    const visibile = () => document.visibilityState === "visible" && aggiornaOccupati();
+    document.addEventListener("visibilitychange", visibile);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", visibile);
+    };
+  }, [aggiornaOccupati]);
+
+  // se qualcun altro prende un posto che avevo scelto, lo tolgo
+  useEffect(() => {
+    if (confermata) return;
+    setSelezione((sel) => {
+      const persi = sel.filter((p) => occupati.has(p.id));
+      if (!persi.length) return sel;
+      setAvviso(`Qualcuno è stato più veloce: ${persi.map((p) => `${p.tav}-${p.num}`).join(", ")} non è più libero.`);
+      return sel.filter((p) => !occupati.has(p.id));
+    });
+  }, [occupati, confermata]);
+
+  const giorni = Math.max(0, Math.ceil((DATA_EVENTO.getTime() - Date.now()) / 864e5));
+  const liberi = POSTI_PRENOTABILI - occupati.size;
+  const prezzati = useMemo(() => prezza(selezione), [selezione]);
+  const subtotale = prezzati.reduce((s, p) => s + p.scontato, 0);
+  const extra = SUPPLEMENTI.filter((s) => supplementi.includes(s.id)).reduce((s, x) => s + x.p, 0);
+  const risparmio = prezzati.reduce((s, p) => s + (p.pieno - p.scontato), 0);
+  const totale = subtotale + extra;
+  const totaleAnimato = useNumeroAnimato(totale);
+  const totalePrec = useRef(totale);
+
+  useEffect(() => {
+    if (!avviso) return;
+    const t = setTimeout(() => setAvviso(""), 4200);
+    return () => clearTimeout(t);
+  }, [avviso]);
+
+  useEffect(() => {
+    const d = totale - totalePrec.current;
+    totalePrec.current = totale;
+    if (d > 0) {
+      setDelta({ v: d, k: Date.now() });
+      const t = setTimeout(() => setDelta(null), 1300);
+      return () => clearTimeout(t);
+    }
+  }, [totale]);
+
+  const toggle = useCallback((id: string) => {
+    const p = POSTI_PER_ID.get(id);
+    if (!p) return;
+    vibra(12);
+    setSelezione((sel) => {
+      if (sel.some((s) => s.id === id)) return sel.filter((s) => s.id !== id);
+      if (sel.length >= MAX_POSTI_PER_PRENOTAZIONE) {
+        setAvviso(`Massimo ${MAX_POSTI_PER_PRENOTAZIONE} posti per prenotazione.`);
+        return sel;
+      }
+      if (sel.length === 1) setAvviso(`Secondo posto aggiunto: da qui ogni persona ha il ${SCONTO_PCT}% di sconto.`);
+      return [...sel, p];
+    });
+  }, []);
+
+  const trovateVoi = () => {
+    const r = trovaPostiVicini(occupati, quanti);
+    if (!r) {
+      setAvviso(`Non c'è un tavolo con ${quanti} posti liberi affiancati. Provate con un numero più basso.`);
+      return;
+    }
+    vibra([10, 30, 10]);
+    setSelezione(r.posti);
+    setAvviso(`Vi ho messi al tavolo ${r.tavolo.cod}, ${SETTORI[r.tavolo.set].nome.toLowerCase()}. Spostatevi pure se preferite.`);
+    azioniSala.current?.vaiATavolo(r.tavolo.x, r.tavolo.z);
+  };
+
+  const vaiA = (n: number) => {
+    setStep(n);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const avanti = () => {
+    if (step === 2 && !nome.trim()) {
+      setErroreNome("Serve un nome, altrimenti i segnaposto restano vuoti.");
+      document.getElementById("nome")?.focus();
+      return;
+    }
+    setErroreNome("");
+    vaiA(Math.min(3, step + 1));
+  };
+  const indietro = () => vaiA(Math.max(0, step - 1));
+
+  const copiaIban = () => {
+    navigator.clipboard?.writeText(IBAN.replace(/\s/g, "")).catch(() => {});
+    setCopiato(true);
+    setTimeout(() => setCopiato(false), 2200);
+  };
+
+  const codice = selezione.length ? `AR27-${selezione[0].tav}${selezione[0].num}-${selezione.length}P-${totale}` : "";
+
+  const conferma = async () => {
+    if (invio || confermata) return;
+    setInvio(true);
+    try {
+      const p = await salvaPrenotazione({
+        nome: nome.trim(),
+        contatto: contatto.trim(),
+        note: note.trim(),
+        posti: selezione.map((s) => s.id),
+        supplementi,
+        totale,
+        codice,
+      });
+      vibra([10, 40, 10, 40, 30]);
+      setConfermata(p);
+      ricordaMiaPrenotazione(p);
+      aggiornaOccupati();
+    } catch (e) {
+      if (e instanceof PostiGiaPresi) {
+        await aggiornaOccupati();
+        vaiA(1);
+      } else {
+        setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
+      }
+    } finally {
+      setInvio(false);
+    }
+  };
+
+  const riapriSalvata = () => {
+    if (!salvata) return;
+    setSelezione(salvata.posti.map((id) => POSTI_PER_ID.get(id)).filter((p): p is Posto => !!p));
+    setSupplementi(salvata.supplementi);
+    setNome(salvata.nome);
+    setContatto(salvata.contatto);
+    setNote(salvata.note);
+    setConfermata(salvata);
+    vaiA(3);
+  };
+
+  const calendario = () =>
+    scaricaEventoCalendario(
+      selezione.length
+        ? `Prenotazione di ${nome.trim()}: ${prezzati.map((p) => `tavolo ${p.tav} posto ${p.num}`).join(", ")}.`
+        : `${SPOSI.lui} & ${SPOSI.lei} si sposano.`,
+    );
+
+  const bloccata = !!confermata;
+  const s0 = prezzati[0] ? SETTORI[prezzati[0].set] : SETTORI.centro;
+
+  return (
+    <div className="app">
+      {busta && <Busta onFine={() => setBusta(false)} />}
+
+      <header className="barra-alta">
+        <div className={"contenitore barra-alta-in" + (step === 1 ? " largo" : "")}>
+          <span className="marchio">
+            <Foglia size={13} color={COLORI.oro} /> {SPOSI.iniziali.replace("&", " & ")} · {DATA_BREVE}
+          </span>
+          <Passi step={step} />
+        </div>
+      </header>
+
+      <main className={"contenitore corpo" + (step === 1 ? " largo" : "")}>
+        <div className="anim-entra" key={step}>
+          {step === 0 && (
+            <>
+              <section className="card manifesto">
+                <Angolo pos="tl" />
+                <Angolo pos="tr" />
+                <Angolo pos="br" />
+                <Angolo pos="bl" />
+                <Stelle n={18} />
+                <div className="manifesto-in">
+                  <p className="occhiello">Unica replica</p>
+                  <Filigrana w={230} />
+                  <h1 className="nomi">
+                    {SPOSI.lui}
+                    <span className="e">&amp;</span>
+                    {SPOSI.lei}
+                  </h1>
+                  <p className="cognomi">{SPOSI.cognomi}</p>
+                  <div className="sep">
+                    <span />
+                    <Foglia size={13} color={COLORI.oro} />
+                    <span />
+                  </div>
+                  <p className="data">{DATA_ESTESA}</p>
+                  <p className="sotto-data">{ORARIO}</p>
+                  <p className="claim">Acquistate il vostro biglietto per l'evento che difficilmente ricorderete.</p>
+                  <div className="listino">
+                    {ORDINE_SETTORI.slice()
+                      .reverse()
+                      .map((k, i) => {
+                        const s = SETTORI[k];
+                        return (
+                          <div key={k} className="tessera" style={{ background: s.soft, animationDelay: `${0.08 * i}s` }}>
+                            <Foglia size={13} color={s.col} />
+                            <p className="tessera-tag" style={{ color: s.col }}>
+                              {s.tag}
+                            </p>
+                            <p className="tessera-prezzo" style={{ color: s.col }}>
+                              {s.prezzo} €
+                            </p>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </section>
+
+              {salvata && (
+                <section className="card nota-famiglia nota-salvata">
+                  <div className="pastiglia" style={{ background: COLORI.bosco }}>
+                    <Check size={15} color={COLORI.carta} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p className="t">Avete già confermato, {salvata.nome}</p>
+                    <p className="d">{salvata.posti.length === 1 ? "Il vostro posto è riservato." : `I vostri ${salvata.posti.length} posti sono riservati.`}</p>
+                  </div>
+                  <button className="bottoncino" onClick={riapriSalvata}>
+                    Biglietto
+                  </button>
+                </section>
+              )}
+
+              <div className="griglia-due">
+                <section className="card nota-famiglia">
+                  <div className="pastiglia">
+                    <Foglia size={15} color={COLORI.carta} />
+                  </div>
+                  <div>
+                    <p className="t">Venite in famiglia?</p>
+                    <p className="d">Scegliete più posti insieme: il primo a prezzo pieno, ogni persona in più con il {SCONTO_PCT}% di sconto.</p>
+                  </div>
+                </section>
+
+                <section className="card riga-contatore">
+                  <div>
+                    <p className="t">{liberi} posti ancora liberi</p>
+                    <p className="d">Mancano {giorni} giorni</p>
+                  </div>
+                  <span className="conteggio">{giorni}</span>
+                </section>
+              </div>
+
+              <section className="card dove">
+                <div className="dove-tx">
+                  <p className="etichetta">
+                    <MapPin size={12} style={{ verticalAlign: "-1px", marginRight: 6 }} />
+                    Dove
+                  </p>
+                  <p className="valore">{LUOGO.nome}</p>
+                  <p className="aiuto" style={{ marginTop: 2 }}>
+                    {LUOGO.indirizzo}
+                  </p>
+                </div>
+                <div className="dove-azioni">
+                  <button className="btn btn-scuro" onClick={() => setMappa(true)}>
+                    <Navigation size={15} /> Come arrivare
+                  </button>
+                  <button className="btn btn-chiaro" onClick={calendario}>
+                    <CalendarPlus size={15} /> Calendario
+                  </button>
+                </div>
+              </section>
+            </>
+          )}
+
+          {step === 1 && (
+            <div className="layout-posti">
+              <div className="colonna-sala">
+                <div className="titolo-riga">
+                  <h2 className="titolo">
+                    <MapPin size={17} /> Scegliete i posti
+                  </h2>
+                  <div className="toggle" role="tablist" aria-label="Vista">
+                    {(
+                      [
+                        ["3d", Box, "Sala 3D"],
+                        ["elenco", LayoutGrid, "Elenco"],
+                      ] as const
+                    ).map(([k, Icona, label]) => (
+                      <button key={k} role="tab" aria-selected={vista === k} onClick={() => setVista(k)} aria-label={label} title={label} className={"toggle-b" + (vista === k ? " on" : "")}>
+                        <Icona size={15} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="intro">
+                  Le sedie colorate sono libere, quelle bianche già prese. Toccatene quante ne servono: dal secondo posto in poi si paga il {SCONTO_PCT}% in meno a persona.
+                </p>
+                {vista === "3d" ? (
+                  <Suspense fallback={<CaricoSala />}>
+                    <Sala3D occupati={occupati} selezione={selezione} onToggle={toggle} onAvviso={setAvviso} azioni={azioniSala} />
+                  </Suspense>
+                ) : (
+                  <ElencoPosti occupati={occupati} selezione={selezione} onToggle={toggle} onAvviso={setAvviso} />
+                )}
+              </div>
+
+              <aside className="colonna-lato">
+                <div className="card gruppo">
+                  <div className="gruppo-tx">
+                    <p className="t">Quanti siete?</p>
+                    <p className="d">Vi trovo posti liberi affiancati allo stesso tavolo.</p>
+                  </div>
+                  <div className="stepper" role="group" aria-label="Quante persone">
+                    <button onClick={() => setQuanti((q) => Math.max(1, q - 1))} aria-label="Uno in meno">
+                      −
+                    </button>
+                    <span aria-live="polite">{quanti}</span>
+                    <button onClick={() => setQuanti((q) => Math.min(8, q + 1))} aria-label="Uno in più">
+                      +
+                    </button>
+                  </div>
+                  <button className="btn btn-scuro gruppo-btn" onClick={trovateVoi}>
+                    Trovate voi
+                  </button>
+                </div>
+
+                {prezzati.length > 0 ? (
+                  <div className="card riepilogo anim-entra">
+                    <div className="riepilogo-cap">
+                      <span className="etichetta">
+                        {prezzati.length} {prezzati.length === 1 ? "posto scelto" : "posti scelti"}
+                      </span>
+                      <button onClick={() => setSelezione([])} className="link">
+                        Svuota
+                      </button>
+                    </div>
+                    <div className="chips">
+                      {prezzati.map((p) => (
+                        <button key={p.id} onClick={() => toggle(p.id)} className="chip chip-sel" style={{ background: SETTORI[p.set].soft, color: SETTORI[p.set].col }} aria-label={`Togli ${p.tav}-${p.num}`}>
+                          {p.tav}-{p.num} · {p.scontato} €{p.sconto ? ` (−${SCONTO_PCT}%)` : ""} <X size={13} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card legenda solo-largo">
+                    {ORDINE_SETTORI.map((k) => (
+                      <div key={k} className="legenda-riga">
+                        <i style={{ background: SETTORI[k].col }} />
+                        <span>{SETTORI[k].nome}</span>
+                        <b style={{ color: SETTORI[k].col }}>{SETTORI[k].prezzo} €</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </aside>
+            </div>
+          )}
+
+          {step === 2 && (
+            <>
+              <h2 className="titolo">
+                <User size={17} /> Chi siete
+              </h2>
+              <div className="card">
+                <div className="riepilogo-cap">
+                  <span className="etichetta">
+                    {prezzati.length} {prezzati.length === 1 ? "posto" : "posti"} · {subtotale} €
+                  </span>
+                  <button onClick={() => vaiA(1)} className="bottoncino">
+                    Modifica
+                  </button>
+                </div>
+                <div className="lista-posti">
+                  {prezzati.map((p) => (
+                    <div key={p.id} className="voce">
+                      <span className="voce-n">
+                        <Foglia size={12} color={SETTORI[p.set].col} />
+                        Tavolo {p.tav} · posto {p.num}
+                      </span>
+                      <span className="voce-p">
+                        {p.sconto && <s>{p.pieno}</s>}
+                        {p.scontato} €
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {risparmio > 0 && <p className="banda-sconto">Sconto famiglia applicato: risparmiate {risparmio} €.</p>}
+              </div>
+
+              <label htmlFor="nome" className="etichetta blocco">
+                Nome e cognome / nome della famiglia
+              </label>
+              <input
+                id="nome"
+                value={nome}
+                onChange={(e) => {
+                  setNome(e.target.value);
+                  setErroreNome("");
+                }}
+                placeholder={prezzati.length > 1 ? "Es. Famiglia Esposito" : "Es. Mario Rossi"}
+                className="campo"
+                autoComplete="name"
+                autoCapitalize="words"
+                enterKeyHint="next"
+                maxLength={120}
+                aria-invalid={!!erroreNome}
+                style={{ borderColor: erroreNome ? SETTORI.vicino.col : undefined }}
+              />
+              <p className="aiuto" style={{ color: erroreNome ? SETTORI.vicino.col : undefined }}>
+                {erroreNome || "Un nome solo per tutti i posti scelti: basta quello per i segnaposto."}
+              </p>
+
+              <label htmlFor="contatto" className="etichetta blocco">
+                Telefono o email · facoltativo
+              </label>
+              <input
+                id="contatto"
+                value={contatto}
+                onChange={(e) => setContatto(e.target.value)}
+                placeholder="Per avvisarvi se cambia qualcosa"
+                className="campo"
+                autoComplete="tel"
+                inputMode="email"
+                maxLength={120}
+              />
+
+              <label htmlFor="note" className="etichetta blocco">
+                Allergie, intolleranze, bambini · facoltativo
+              </label>
+              <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Es. un vegetariano, una seggiolina per la piccola" className="campo campo-note" rows={3} maxLength={600} />
+
+              <p className="etichetta blocco">Supplementi facoltativi · una volta per prenotazione</p>
+              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                {SUPPLEMENTI.map((s, i) => {
+                  const on = supplementi.includes(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setSupplementi((x) => (on ? x.filter((y) => y !== s.id) : [...x, s.id]))}
+                      className="extra"
+                      role="checkbox"
+                      aria-checked={on}
+                      style={{ borderTop: i ? `1px solid ${COLORI.linea}` : "none" }}
+                    >
+                      <span className={"spunta" + (on ? " on" : "")}>{on && <Check size={13} strokeWidth={3} />}</span>
+                      <span className="extra-tx">
+                        <span className="n">{s.n}</span>
+                        <span className="d">{s.d}</span>
+                      </span>
+                      <span className="extra-p">+{s.p} €</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {step === 3 && prezzati.length > 0 && (
+            <>
+              <h2 className="titolo">{prezzati.length === 1 ? "Il vostro biglietto" : `I vostri ${prezzati.length} biglietti`}</h2>
+              <div className={"card biglietto" + (bloccata ? " timbrato" : "")}>
+                <Angolo pos="tl" />
+                <Angolo pos="tr" />
+                {bloccata && <div className="timbro">Confermato</div>}
+                <div className="big-testa" style={{ background: s0.soft }}>
+                  <div className="sigillo">
+                    <span>{SPOSI.iniziali}</span>
+                  </div>
+                  <p className="occhiello" style={{ color: s0.col }}>
+                    Ingresso per {prezzati.length} {prezzati.length === 1 ? "persona" : "persone"}
+                  </p>
+                  <p className="big-nomi">
+                    {SPOSI.lui} &amp; {SPOSI.lei}
+                  </p>
+                  <p className="d">
+                    {DATA_ESTESA} · ore {DATA_EVENTO.getHours()}:{String(DATA_EVENTO.getMinutes()).padStart(2, "0")}
+                  </p>
+                </div>
+                <div className="big-corpo">
+                  <div className="voce">
+                    <span className="etichetta">Intestatario</span>
+                    <span className="voce-p">{nome.trim()}</span>
+                  </div>
+                  {prezzati.map((p) => (
+                    <div key={p.id} className="voce bordo">
+                      <span className="voce-n">
+                        <Foglia size={12} color={SETTORI[p.set].col} />
+                        <span>
+                          Tavolo {p.tav} · posto {p.num}
+                          <i>{SETTORI[p.set].nome}</i>
+                        </span>
+                      </span>
+                      <span className="voce-p">
+                        {p.sconto && <s>{p.pieno} €</s>}
+                        {p.scontato} €
+                      </span>
+                    </div>
+                  ))}
+                  {SUPPLEMENTI.filter((s) => supplementi.includes(s.id)).map((s) => (
+                    <div key={s.id} className="voce bordo">
+                      <span className="voce-n">{s.n}</span>
+                      <span className="voce-p">+{s.p} €</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="strappo">
+                  <span />
+                  <Foglia size={12} color={COLORI.oro} />
+                  <span />
+                </div>
+                <div className="big-piede">
+                  <div className="codice-barre" aria-hidden="true">
+                    {Array.from({ length: 46 }).map((_, i) => (
+                      <span key={i} style={{ width: [1, 1, 2, 3][i % 4], height: i % 7 === 0 ? "100%" : "74%" }} />
+                    ))}
+                  </div>
+                  <p className="codice">{confermata?.codice ?? codice}</p>
+                </div>
+              </div>
+
+              <div className="card">
+                <p className="etichetta">
+                  <Lock size={12} style={{ verticalAlign: "-1px", marginRight: 6 }} />
+                  Salda la busta
+                </p>
+                <p className="sotto-etichetta">Intestato a</p>
+                <p className="valore">{SPOSI.intestatario}</p>
+                <p className="sotto-etichetta">IBAN</p>
+                <div className="iban-riga">
+                  <code className="iban">{IBAN}</code>
+                  <button onClick={copiaIban} className={"btn btn-scuro" + (copiato ? " btn-ok" : "")}>
+                    {copiato ? <Check size={14} /> : <Copy size={14} />}
+                    {copiato ? "Copiato" : "Copia IBAN"}
+                  </button>
+                </div>
+                <p className="sotto-etichetta">Causale</p>
+                <p className="valore rompi">
+                  Busta {nome.trim()} — {confermata?.codice ?? codice}
+                </p>
+                {risparmio > 0 && (
+                  <div className="voce" style={{ marginTop: 14 }}>
+                    <span style={{ color: COLORI.soft }}>Sconto famiglia ({SCONTO_PCT}%)</span>
+                    <span style={{ color: SETTORI.centro.col }}>− {risparmio} €</span>
+                  </div>
+                )}
+                <div className="totale">
+                  <span className="etichetta">Importo</span>
+                  <span className="totale-v">{totale} €</span>
+                </div>
+                <div className="banda-oro">Poi, tra noi: potete pagare quello che volete. Anche zero. Dopotutto vi vogliamo ancora bene.</div>
+                <p className="aiuto">
+                  Se preferite il contante, la busta si consegna all'ingresso come vuole la tradizione. Il biglietto non dà diritto a rimborso, ma dà diritto a due primi, un secondo, il dolce e almeno un ballo lento.
+                </p>
+                <button onClick={conferma} disabled={invio || bloccata} className={"btn btn-largo " + (bloccata ? "btn-ok" : "btn-scuro")} aria-live="polite">
+                  {bloccata ? (
+                    <>
+                      <Check size={16} /> Presenza confermata — ci vediamo il {DATA_EVENTO.toLocaleDateString("it-IT", { day: "numeric", month: "long" })}
+                    </>
+                  ) : invio ? (
+                    "Sto confermando…"
+                  ) : (
+                    "Confermiamo la nostra presenza"
+                  )}
+                </button>
+                {bloccata && (
+                  <div className="dove-azioni dopo-conferma anim-entra">
+                    <button className="btn btn-chiaro" onClick={() => setMappa(true)}>
+                      <Navigation size={15} /> Come arrivare
+                    </button>
+                    <button className="btn btn-chiaro" onClick={calendario}>
+                      <CalendarPlus size={15} /> Aggiungi al calendario
+                    </button>
+                  </div>
+                )}
+                {bloccata && <p className="aiuto">Per cambiare posti o persone scriveteci pure: sistemiamo noi.</p>}
+              </div>
+              {(MODALITA_DEMO || IBAN_DI_ESEMPIO) && (
+                <p className="piedino">
+                  {MODALITA_DEMO ? "Modalità demo · le conferme restano su questo dispositivo" : ""}
+                  {MODALITA_DEMO && IBAN_DI_ESEMPIO ? " · " : ""}
+                  {IBAN_DI_ESEMPIO ? "IBAN di esempio" : ""}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+
+      {avviso && (
+        <div className="avviso anim-su" role="status" key={avviso}>
+          {avviso}
+        </div>
+      )}
+
+      <div className="barra-bassa">
+        <div className={"contenitore barra-bassa-in" + (step === 1 ? " largo" : "")}>
+          {step > 0 && !(step === 3 && bloccata) && (
+            <button onClick={indietro} aria-label="Indietro" className="btn btn-tondo">
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          {step === 3 && bloccata && (
+            <button onClick={() => vaiA(0)} aria-label="Torna all'invito" className="btn btn-tondo">
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <div className="barra-info">
+            {prezzati.length ? (
+              <>
+                <p className="k">
+                  {prezzati.length} {prezzati.length === 1 ? "posto" : "posti"}
+                  {risparmio > 0 && <span className="pastiglia-sconto">−{SCONTO_PCT}% · {risparmio} €</span>}
+                </p>
+                <p className="v" aria-live="polite">
+                  {totaleAnimato} €
+                  {delta && (
+                    <span key={delta.k} className="delta">
+                      +{delta.v} €
+                    </span>
+                  )}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="k">{step === 0 ? `Da ${Math.min(...PREZZI)} a ${Math.max(...PREZZI)} €` : "Nessun posto scelto"}</p>
+                <p className="v2">{step === 0 ? `${liberi} sedie libere su ${POSTI_PRENOTABILI}` : "Toccate una sedia libera"}</p>
+              </>
+            )}
+          </div>
+          {step < 3 && (
+            <button onClick={avanti} disabled={step === 1 && !prezzati.length} className={"btn btn-scuro" + (step === 1 && !prezzati.length ? " btn-off" : "")}>
+              {step === 0 ? (salvata ? "Nuova prenotazione" : "Scegli i posti") : step === 1 ? "Continua" : "Biglietti"}
+              <ArrowRight size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {mappa && (
+        <Suspense fallback={<div className="mappa-scena mappa-carico">Apro la mappa…</div>}>
+          <ComeArrivare onChiudi={() => setMappa(false)} />
+        </Suspense>
+      )}
+    </div>
+  );
+}
