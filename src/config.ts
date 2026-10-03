@@ -21,6 +21,7 @@ export const DURATA_ORE = 9;
 export const LUOGO = {
   nome: "Scrajo Terme Hotel & Spa",
   indirizzo: "Via Luigi Serio, 10, 80069 Vico Equense NA",
+  citta: "Vico Equense",
   lat: 40.67193,
   lng: 14.43507,
 };
@@ -30,3 +31,7 @@ export const IBAN_DI_ESEMPIO = true;
 
 export const SCONTO_FAMIGLIA = 0.35;
 export const MAX_POSTI_PER_PRENOTAZIONE = 12;
+
+// I posti sono scenografici: in sala restano sempre almeno queste sedie libere,
+// qualunque sia il numero di conferme.
+export const POSTI_SEMPRE_LIBERI = 12;

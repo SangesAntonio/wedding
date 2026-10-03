@@ -1,40 +1,23 @@
--- Database delle conferme per l'invito (versione completa).
--- Progetto nuovo: incollare tutto in Supabase → SQL Editor → New query → Run.
--- Progetto creato con la versione precedente: eseguire invece migrazione-02-codice.sql.
+-- Migrazione 02 — da eseguire UNA volta su un database creato con la prima versione di schema.sql.
+-- (Su un progetto nuovo basta schema.sql, che contiene già tutto.)
+--
+-- Cosa cambia:
+--   * i posti sono scenografici: più prenotazioni possono avere la stessa sedia
+--   * ogni prenotazione riceve un codice casuale (es. AR-7KQ2MX) generato dal database
+--   * con il codice l'invitato ritrova la sua prenotazione: funzione cerca_prenotazione
 
--- 1. Una riga per ogni conferma (famiglia o persona)
-create table if not exists public.prenotazioni (
-  id          uuid primary key default gen_random_uuid(),
-  creata_il   timestamptz not null default now(),
-  nome        text not null check (char_length(trim(nome)) between 1 and 120),
-  contatto    text check (contatto is null or char_length(contatto) <= 120),
-  note        text check (note is null or char_length(note) <= 600),
-  persone     int  not null,
-  posti       text[] not null,
-  supplementi text[] not null default '{}',
-  totale      int  not null default 0,
-  codice      text not null unique
-);
+-- 1. posti_occupati: non più un posto = una prenotazione
+alter table public.posti_occupati drop constraint if exists posti_occupati_pkey;
+alter table public.posti_occupati add column if not exists creata_il timestamptz not null default now();
+alter table public.posti_occupati add primary key (posto, prenotazione_id);
 
--- 2. Le sedie scelte, mostrate in sala. Sono scenografiche: la stessa sedia può
---    comparire in più prenotazioni, il sito ne mostra comunque sempre qualcuna libera.
-create table if not exists public.posti_occupati (
-  posto           text not null,
-  prenotazione_id uuid not null references public.prenotazioni(id) on delete cascade,
-  nome            text not null,
-  creata_il       timestamptz not null default now(),
-  primary key (posto, prenotazione_id)
-);
+-- 2. codice unico per prenotazione
+alter table public.prenotazioni drop constraint if exists prenotazioni_codice_key;
+alter table public.prenotazioni add constraint prenotazioni_codice_key unique (codice);
 
--- 3. Sicurezza: dal sito non si leggono le prenotazioni (contatti e note restano vostri).
---    Il sito può leggere le sedie scelte, prenotare e ritrovare una prenotazione dal suo codice.
-alter table public.prenotazioni   enable row level security;
-alter table public.posti_occupati enable row level security;
+-- 3. nuove funzioni (stesse di schema.sql)
+drop function if exists public.prenota(text, text, text, text[], text[], int, text);
 
-drop policy if exists "posti visibili a tutti" on public.posti_occupati;
-create policy "posti visibili a tutti" on public.posti_occupati for select using (true);
-
--- 4. Codice di prenotazione casuale e non indovinabile, es. AR-7KQ2MX
 create or replace function public.genera_codice() returns text
 language plpgsql
 as $$
@@ -53,7 +36,6 @@ begin
 end;
 $$;
 
--- 5. Prenotazione: salva tutto insieme e restituisce id e codice
 create or replace function public.prenota(
   p_nome text,
   p_contatto text,
@@ -77,7 +59,6 @@ begin
   if (select count(distinct x) from unnest(p_posti) x) <> v_n then
     raise exception 'posti_duplicati';
   end if;
-  -- solo sedie che esistono in sala (S-1 e S-8 sono degli sposi)
   if exists (
     select 1 from unnest(p_posti) s
     where s !~ '^(S|A[1-3]|B[1-5]|C[1-4])-[1-8]$' or s in ('S-1', 'S-8')
@@ -99,7 +80,6 @@ begin
 end;
 $$;
 
--- 6. Ritrovare la propria prenotazione con il codice
 create or replace function public.cerca_prenotazione(p_codice text) returns json
 language sql
 stable
@@ -122,16 +102,9 @@ grant execute on function public.prenota(text, text, text, text[], text[], int) 
 revoke all on function public.cerca_prenotazione(text) from public;
 grant execute on function public.cerca_prenotazione(text) to anon, authenticated;
 
--- 7. Aggiornamento in tempo reale delle sedie sul sito
-do $$
-begin
-  alter publication supabase_realtime add table public.posti_occupati;
-exception when duplicate_object then null;
-end $$;
-
--- 8. Vista comoda per voi: chi viene, quanti sono, dove siedono
+-- 4. riepilogo con il codice
 drop view if exists public.riepilogo;
-create view public.riepilogo
+create or replace view public.riepilogo
 with (security_invoker = true) as
 select
   creata_il::date               as data,
@@ -146,6 +119,3 @@ select
 from public.prenotazioni
 order by creata_il desc;
 revoke all on public.riepilogo from anon, authenticated;
-
--- Per cancellare una prenotazione basta eliminarla da "prenotazioni":
--- le sue sedie in "posti_occupati" si cancellano da sole.

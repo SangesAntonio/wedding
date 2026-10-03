@@ -1,5 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Box, CalendarPlus, Check, Copy, LayoutGrid, Lock, MapPin, Navigation, User, X } from "lucide-react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, ArrowRight, Box, CalendarPlus, Check, Copy, KeyRound, LayoutGrid, Lock, MapPin, Navigation, User, X } from "lucide-react";
 import {
   DATA_BREVE,
   DATA_ESTESA,
@@ -26,9 +26,10 @@ import {
 } from "./data/sala";
 import {
   MODALITA_DEMO,
-  PostiGiaPresi,
+
   ascoltaOccupati,
   caricaOccupati,
+  cercaPrenotazione,
   leggiMiaPrenotazione,
   ricordaMiaPrenotazione,
   salvaPrenotazione,
@@ -93,6 +94,10 @@ export default function App() {
   const [mappa, setMappa] = useState(false);
   const [invio, setInvio] = useState(false);
   const [confermata, setConfermata] = useState<PrenotazioneSalvata | null>(null);
+  const [codiceCercato, setCodiceCercato] = useState("");
+  const [cercando, setCercando] = useState(false);
+  const [erroreCodice, setErroreCodice] = useState("");
+  const [codiceCopiato, setCodiceCopiato] = useState(false);
   const azioniSala = useRef<AzioniSala | null>(null);
 
   // la sala 3D si scarica in sottofondo mentre si legge l'invito
@@ -150,7 +155,7 @@ export default function App() {
   useEffect(() => {
     const d = totale - totalePrec.current;
     totalePrec.current = totale;
-    if (d > 0) {
+    if (d > 0 && !confermata) {
       setDelta({ v: d, k: Date.now() });
       const t = setTimeout(() => setDelta(null), 1300);
       return () => clearTimeout(t);
@@ -205,8 +210,6 @@ export default function App() {
     setTimeout(() => setCopiato(false), 2200);
   };
 
-  const codice = selezione.length ? `AR27-${selezione[0].tav}${selezione[0].num}-${selezione.length}P-${totale}` : "";
-
   const conferma = async () => {
     if (invio || confermata) return;
     setInvio(true);
@@ -218,33 +221,64 @@ export default function App() {
         posti: selezione.map((s) => s.id),
         supplementi,
         totale,
-        codice,
       });
       vibra([10, 40, 10, 40, 30]);
       setConfermata(p);
       ricordaMiaPrenotazione(p);
       aggiornaOccupati();
-    } catch (e) {
-      if (e instanceof PostiGiaPresi) {
-        await aggiornaOccupati();
-        vaiA(1);
-      } else {
-        setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
-      }
+    } catch {
+      setAvviso("Non sono riuscito a salvare la conferma. Controllate la connessione e riprovate.");
     } finally {
       setInvio(false);
     }
   };
 
-  const riapriSalvata = () => {
-    if (!salvata) return;
-    setSelezione(salvata.posti.map((id) => POSTI_PER_ID.get(id)).filter((p): p is Posto => !!p));
-    setSupplementi(salvata.supplementi);
-    setNome(salvata.nome);
-    setContatto(salvata.contatto);
-    setNote(salvata.note);
-    setConfermata(salvata);
+  const apriPrenotazione = (p: PrenotazioneSalvata) => {
+    setSelezione(p.posti.map((id) => POSTI_PER_ID.get(id)).filter((x): x is Posto => !!x));
+    setSupplementi(p.supplementi);
+    setNome(p.nome);
+    setContatto(p.contatto);
+    setNote(p.note);
+    setConfermata(p);
     vaiA(3);
+  };
+
+  const ritrova = async (e: FormEvent) => {
+    e.preventDefault();
+    if (cercando) return;
+    setErroreCodice("");
+    setCercando(true);
+    try {
+      const p = await cercaPrenotazione(codiceCercato);
+      if (!p) {
+        setErroreCodice("Nessuna prenotazione con questo codice. Lo trovate nel biglietto, tipo AR-7KQ2MX.");
+        return;
+      }
+      ricordaMiaPrenotazione(p);
+      setCodiceCercato("");
+      apriPrenotazione(p);
+    } catch {
+      setErroreCodice("Non riesco a cercare in questo momento. Controllate la connessione e riprovate.");
+    } finally {
+      setCercando(false);
+    }
+  };
+
+  const nuovaPrenotazione = () => {
+    setConfermata(null);
+    setSelezione([]);
+    setSupplementi([]);
+    setNome("");
+    setContatto("");
+    setNote("");
+    vaiA(1);
+  };
+
+  const copiaCodice = () => {
+    if (!confermata) return;
+    navigator.clipboard?.writeText(confermata.codice).catch(() => {});
+    setCodiceCopiato(true);
+    setTimeout(() => setCodiceCopiato(false), 2200);
   };
 
   const calendario = () =>
@@ -255,6 +289,7 @@ export default function App() {
     );
 
   const bloccata = !!confermata;
+  const mia = confermata ?? salvata;
   const s0 = prezzati[0] ? SETTORI[prezzati[0].set] : SETTORI.centro;
 
   return (
@@ -318,19 +353,50 @@ export default function App() {
                 </div>
               </section>
 
-              {salvata && (
+              {mia ? (
                 <section className="card nota-famiglia nota-salvata">
                   <div className="pastiglia" style={{ background: COLORI.bosco }}>
                     <Check size={15} color={COLORI.carta} />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <p className="t">Avete già confermato, {salvata.nome}</p>
-                    <p className="d">{salvata.posti.length === 1 ? "Il vostro posto è riservato." : `I vostri ${salvata.posti.length} posti sono riservati.`}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="t">Avete già confermato, {mia.nome}</p>
+                    <p className="d">
+                      {mia.posti.length === 1 ? "1 persona" : `${mia.posti.length} persone`} · codice {mia.codice}
+                    </p>
                   </div>
-                  <button className="bottoncino" onClick={riapriSalvata}>
+                  <button className="bottoncino" onClick={() => apriPrenotazione(mia)}>
                     Biglietto
                   </button>
                 </section>
+              ) : (
+                <form className="card ritrova" onSubmit={ritrova}>
+                  <p className="t">
+                    <KeyRound size={14} /> Avete già confermato?
+                  </p>
+                  <p className="d">Inserite il codice del biglietto per rivedere posti, luogo e informazioni.</p>
+                  <div className="ritrova-riga">
+                    <input
+                      value={codiceCercato}
+                      onChange={(e) => {
+                        setCodiceCercato(e.target.value);
+                        setErroreCodice("");
+                      }}
+                      placeholder="AR-7KQ2MX"
+                      className="campo campo-codice"
+                      aria-label="Codice della prenotazione"
+                      autoCapitalize="characters"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      enterKeyHint="search"
+                      maxLength={12}
+                    />
+                    <button type="submit" className="btn btn-chiaro" disabled={cercando || codiceCercato.trim().length < 6}>
+                      {cercando ? "Cerco…" : "Apri"}
+                    </button>
+                  </div>
+                  {erroreCodice && <p className="aiuto errore">{erroreCodice}</p>}
+                </form>
               )}
 
               <div className="griglia-due">
@@ -580,6 +646,7 @@ export default function App() {
                   <p className="d">
                     {DATA_ESTESA} · ore {DATA_EVENTO.getHours()}:{String(DATA_EVENTO.getMinutes()).padStart(2, "0")}
                   </p>
+                  <p className="d">{LUOGO.nome} · {LUOGO.citta}</p>
                 </div>
                 <div className="big-corpo">
                   <div className="voce">
@@ -614,14 +681,33 @@ export default function App() {
                   <span />
                 </div>
                 <div className="big-piede">
-                  <div className="codice-barre" aria-hidden="true">
+                  <div className={"codice-barre" + (bloccata ? "" : " sbiadito")} aria-hidden="true">
                     {Array.from({ length: 46 }).map((_, i) => (
                       <span key={i} style={{ width: [1, 1, 2, 3][i % 4], height: i % 7 === 0 ? "100%" : "74%" }} />
                     ))}
                   </div>
-                  <p className="codice">{confermata?.codice ?? codice}</p>
+                  <p className="codice">{confermata ? confermata.codice : "il codice arriva con la conferma"}</p>
                 </div>
               </div>
+
+              {confermata && (
+                <div className="card card-codice anim-entra">
+                  <div>
+                    <p className="etichetta">
+                      <KeyRound size={12} style={{ verticalAlign: "-1px", marginRight: 6 }} />
+                      Il vostro codice
+                    </p>
+                    <p className="codice-grande">{confermata.codice}</p>
+                    <p className="aiuto" style={{ marginTop: 4 }}>
+                      Conservatelo: riaprendo l'invito da qualsiasi telefono ritrovate posti, luogo e IBAN.
+                    </p>
+                  </div>
+                  <button onClick={copiaCodice} className={"btn " + (codiceCopiato ? "btn-ok" : "btn-chiaro")}>
+                    {codiceCopiato ? <Check size={14} /> : <Copy size={14} />}
+                    {codiceCopiato ? "Copiato" : "Copia"}
+                  </button>
+                </div>
+              )}
 
               <div className="card">
                 <p className="etichetta">
@@ -640,7 +726,8 @@ export default function App() {
                 </div>
                 <p className="sotto-etichetta">Causale</p>
                 <p className="valore rompi">
-                  Busta {nome.trim()} — {confermata?.codice ?? codice}
+                  Busta {nome.trim()}
+                  {confermata ? ` — ${confermata.codice}` : ""}
                 </p>
                 {risparmio > 0 && (
                   <div className="voce" style={{ marginTop: 14 }}>
@@ -733,8 +820,8 @@ export default function App() {
             )}
           </div>
           {step < 3 && (
-            <button onClick={avanti} disabled={step === 1 && !prezzati.length} className={"btn btn-scuro" + (step === 1 && !prezzati.length ? " btn-off" : "")}>
-              {step === 0 ? (salvata ? "Nuova prenotazione" : "Scegli i posti") : step === 1 ? "Continua" : "Biglietti"}
+            <button onClick={step === 0 && mia ? nuovaPrenotazione : avanti} disabled={step === 1 && !prezzati.length} className={"btn btn-scuro" + (step === 1 && !prezzati.length ? " btn-off" : "")}>
+              {step === 0 ? (mia ? "Nuova prenotazione" : "Scegli i posti") : step === 1 ? "Continua" : "Biglietti"}
               <ArrowRight size={16} />
             </button>
           )}

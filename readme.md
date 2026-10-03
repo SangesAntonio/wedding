@@ -17,7 +17,8 @@ Si apre su http://localhost:5173. Per provarla dal telefono sulla stessa rete Wi
 "Network" che Vite stampa nel terminale.
 
 Senza Supabase configurato gira in **modalità demo**: alcuni posti risultano già presi da parenti
-immaginari e le conferme restano solo nel browser.
+immaginari e le conferme restano solo nel browser. Con `npm run demo` si forza la modalità demo anche se
+`.env` è presente, utile per provare senza scrivere nel database vero.
 
 ## Cosa cambiare
 
@@ -29,33 +30,41 @@ Quando l'IBAN è quello vero mettete `IBAN_DI_ESEMPIO = false`.
 
 1. Create un account su https://supabase.com e un nuovo progetto (regione: Frankfurt/EU).
 2. **SQL Editor → New query**: incollate tutto [supabase/schema.sql](supabase/schema.sql) e premete **Run**.
+   Se il database era stato creato con la prima versione, eseguite invece [supabase/migrazione-02-codice.sql](supabase/migrazione-02-codice.sql).
 3. **Project Settings → API**: copiate *Project URL* e la chiave *anon public*.
 4. Copiate `.env.example` in `.env` e incollate i due valori. Riavviate `npm run dev`.
 
 Da quel momento:
 - ogni conferma finisce nella tabella `prenotazioni` (Table Editor) e la vista `riepilogo` mostra chi viene e dove siede;
-- un posto non può essere preso due volte, nemmeno se due invitati confermano nello stesso secondo;
-- i posti liberi si aggiornano in tempo reale su tutti i telefoni aperti;
-- per liberare dei posti cancellate la riga in `prenotazioni`.
+- ogni prenotazione riceve un **codice** casuale (es. `AR-7KQ2MX`): l'invitato lo inserisce nell'invito per
+  rivedere posti, luogo, data e IBAN da qualsiasi telefono;
+- i posti sono **scenografici**: più invitati possono scegliere la stessa sedia e in sala restano sempre
+  almeno `POSTI_SEMPRE_LIBERI` sedie libere (in [src/config.ts](src/config.ts));
+- le sedie scelte si aggiornano in tempo reale su tutti i telefoni aperti;
+- per cancellare una prenotazione eliminate la riga in `prenotazioni`.
 
 La chiave *anon* è fatta per stare nel sito: con le regole dello schema, dal sito si può solo leggere
 quali posti sono occupati (con il nome scelto da chi li ha presi) e creare una prenotazione. Contatti e note
-li vedete solo voi dalla dashboard.
+li vedete solo voi dalla dashboard; con il codice l'invitato rivede solo la propria prenotazione.
 
 ## Ricevere un'email a ogni conferma
 
-1. Account su https://resend.com → **API Keys** → create una chiave.
-   Senza dominio vostro il mittente è `onboarding@resend.dev` e si può scrivere **solo all'email dell'account Resend**: per voi va benissimo.
-2. Installate la CLI di Supabase e pubblicate la funzione:
-   ```bash
-   npx supabase login
-   npx supabase link --project-ref IL_VOSTRO_PROJECT_REF
-   npx supabase functions deploy notifica-prenotazione --no-verify-jwt
-   npx supabase secrets set RESEND_API_KEY=re_xxx EMAIL_SPOSI=voi@esempio.it WEBHOOK_SECRET=una-parola-segreta
-   ```
-3. Supabase → **Database → Webhooks → Create a new hook**:
-   tabella `prenotazioni`, evento **Insert**, tipo **Supabase Edge Functions**, funzione `notifica-prenotazione`,
-   e negli *HTTP Headers* aggiungete `x-webhook-secret` = la stessa parola segreta.
+Percorso: nuova riga in `prenotazioni` → *Database Webhook* di Supabase → Edge Function
+[notifica-prenotazione](supabase/functions/notifica-prenotazione/index.ts) → Resend → la vostra casella.
+Tutto dalla dashboard, senza terminale:
+
+1. **Resend**: account su https://resend.com **con l'indirizzo che deve ricevere le notifiche**, poi **API Keys → Create API Key**.
+   Senza un dominio vostro il mittente è `onboarding@resend.dev` e si può scrivere solo all'email dell'account: per voi basta.
+2. **Funzione**: Supabase → **Edge Functions → Deploy a new function → Via Editor**. Nome `notifica-prenotazione`,
+   incollate il contenuto di `supabase/functions/notifica-prenotazione/index.ts` e premete **Deploy**.
+   Nelle impostazioni della funzione disattivate **Verify JWT** (la protegge la parola segreta del punto 3).
+3. **Segreti**: **Edge Functions → Secrets**, aggiungete
+   `RESEND_API_KEY` (la chiave di Resend), `EMAIL_SPOSI` (la vostra email), `WEBHOOK_SECRET` (una parola segreta inventata).
+4. **Webhook**: **Database → Webhooks → Create a new hook**: tabella `prenotazioni`, evento **Insert**,
+   tipo **Supabase Edge Functions**, funzione `notifica-prenotazione`; negli *HTTP Headers* aggiungete
+   `x-webhook-secret` con la stessa parola segreta.
+
+Se le email non arrivano: **Edge Functions → notifica-prenotazione → Logs**.
 
 ## Pubblicare online (GitHub Pages)
 
