@@ -44,9 +44,10 @@ flowchart LR
 | Tema | Scelta | Perché |
 |---|---|---|
 | Area sposi | Seconda pagina dello stesso progetto (`/sposi/`), con un bundle separato | Gli invitati non scaricano il codice dell'area sposi; un solo repo e una sola pubblicazione |
-| Login | Supabase Auth con email e password, iscrizioni pubbliche **disattivate** | Gli account li create voi dalla dashboard; nessuno può registrarsi da solo |
+| Login | Supabase Auth: **email + password** e **Accedi con Google**. Account creati da voi (invito dalla dashboard), iscrizioni pubbliche disattivate | Google entra solo se l'email è già un account; chi non è in `membri` non vede niente |
 | Permessi | Tabella `membri` (chi amministra quale matrimonio) + regole RLS | Il database rifiuta qualunque lettura non autorizzata, anche se qualcuno manomette il sito |
-| Invitati | Nessun login: il **codice** fa da chiave, solo tramite funzioni SQL dedicate | Zero attrito per i parenti; con il codice si vede o si modifica solo la propria prenotazione |
+| Invitati | Nessun login. **Link personale** per famiglia (`?i=TOKEN`, 8 caratteri) come chiave principale; il **codice** `AR-XXXXXX` resta per il link generico | Zero attrito per i parenti; un link inoltrato espone solo quella famiglia, entro il suo limite di persone |
+| Link generico | Resta attivo come riserva: le conferme arrivano con stato **da verificare** | Niente si blocca se mandate l'invito al volo; gli estranei non finiscono tra i confermati |
 | Pronto per la piattaforma | Da subito una tabella `matrimoni` e `matrimonio_id` su ogni riga | Aggiungerlo dopo costa molto; adesso costa una colonna. Per ora esiste un solo matrimonio |
 | Impostazioni | `matrimoni.config` (JSON) letto dal sito, con i valori attuali di `config.ts` come riserva | Si modificano dall'area sposi senza ripubblicare; è la base dei futuri template |
 | Dominio | Non serve per partire. Dopo: dominio su GitHub Pages (o Cloudflare Pages/Netlify) + aggiornare gli URL in Supabase Auth | Il dominio vostro permette anche di mandare email agli invitati (Resend con dominio verificato) |
@@ -56,8 +57,9 @@ flowchart LR
 ```text
 matrimoni      id · slug · config(jsonb) · creato_il
 membri         matrimonio_id · user_id · ruolo('sposi')
-prenotazioni   id · matrimonio_id · codice · nome · contatto · note · persone · posti[] · supplementi[] · totale
-               stato('confermata' | 'annullata')
+inviti         id · matrimonio_id · token · nome('Famiglia Esposito') · max_persone · contatto · nota_sposi · aperto_il · creato_il
+prenotazioni   id · matrimonio_id · invito_id(nullable) · codice · nome · contatto · note · persone · posti[] · supplementi[] · totale
+               stato('confermata' | 'da_verificare' | 'annullata')
                richiamo('da_sentire' | 'confermato' | 'non_viene' | 'non_risponde')   ← seconda conferma
                richiamo_il · nota_sposi · creata_il · modificata_il
 posti_occupati posto · prenotazione_id · matrimonio_id · nome · creata_il       (solo prenotazioni confermate)
@@ -71,20 +73,31 @@ storico        id · prenotazione_id · chi('invitato' | 'sposi') · cosa · pri
 ### Fase 1 — Fondamenta del database
 Migrazione `03`, invisibile agli invitati.
 
-- [ ] Tabelle `matrimoni` e `membri`; `matrimonio_id` su prenotazioni e posti (riempito con l'unico matrimonio)
+- [ ] Tabelle `matrimoni`, `membri` e `inviti`; `matrimonio_id` su prenotazioni e posti (riempito con l'unico matrimonio)
 - [ ] Colonne `stato`, `richiamo`, `richiamo_il`, `nota_sposi`, `modificata_il`; tabella `storico`
 - [ ] Funzione `e_sposo(matrimonio_id)` e regole RLS: i membri leggono e modificano solo il proprio matrimonio
 - [ ] Le funzioni `prenota` e `cerca_prenotazione` restano compatibili (il sito attuale continua a funzionare)
 - [ ] Le prenotazioni annullate non occupano sedie e non compaiono nel conteggio
+- [ ] Data del matrimonio e `giorni_blocco_modifiche = 10` in `matrimoni.config`, usati dalle funzioni SQL
 
 ### Fase 2 — Area sposi: login ed elenco
 - [ ] Pagina `/sposi/` con login (email + password) e logout; password dimenticata
+- [ ] "Accedi con Google" (client OAuth nella Google Cloud Console + provider in Supabase)
 - [ ] Account vostri creati dalla dashboard; iscrizioni pubbliche disattivate
 - [ ] Riepilogo in alto: famiglie, persone confermate, annullate, da risentire
 - [ ] Elenco con ricerca e filtri (stato, richiamo); a ogni riga nome, persone, posti, contatto, note, codice, data
 - [ ] Contatto cliccabile: chiama, WhatsApp (`wa.me`), email
 - [ ] Esporta CSV (per catering, tableau, segnaposti)
 - [ ] Aggiornamento in tempo reale quando arriva una conferma
+
+### Fase 2b — Lista invitati e link personali
+*Da fare prima di mandare l'invito.*
+- [ ] Lista invitati nell'area sposi: nome famiglia, max persone, contatto; inserimento a mano e import CSV
+- [ ] Link personale per ogni invito, con i pulsanti **Copia** e **Manda su WhatsApp** (messaggio già scritto)
+- [ ] Stato per invito: non aperto · aperto · confermato · annullato → "chi non ha ancora risposto"
+- [ ] L'invito riconosce `?i=TOKEN`: saluta la famiglia, limita le persone, collega la prenotazione all'invito
+- [ ] Link generico: le conferme entrano come **da verificare**; nell'area sposi le approvate o le collegate a un invito
+- [ ] Token sconosciuto o revocato → messaggio gentile "questo invito non è più valido, scriveteci"
 
 ### Fase 3 — Seconda conferma e gestione dagli sposi
 - [ ] Su ogni riga: stato del richiamo con un tocco (confermato / non viene / non risponde) + data automatica
@@ -96,11 +109,12 @@ Migrazione `03`, invisibile agli invitati.
 
 ### Fase 4 — Gli invitati gestiscono la propria prenotazione
 - [ ] Dal biglietto (con codice o dal browser che la ricorda): **Modifica** e **Annulla presenza**
-- [ ] Modifiche possibili: meno persone (togliere sedie), cambiare sedie, contatto e note; aggiungere persone *(da decidere)*
-- [ ] Scadenza modifiche configurabile (es. fino a 15 giorni prima); dopo si vede solo "scriveteci"
+- [ ] Modifiche possibili: aggiungere o togliere persone (entro `max_persone`), cambiare sedie, contatto e note
+- [ ] Annullare non cancella: stato `annullata`, ripristinabile dagli sposi
+- [ ] Modifiche fino a **10 giorni prima**, controllate dal database; dopo si vede "per modifiche scriveteci" e modificano solo gli sposi
 - [ ] Funzioni SQL `modifica_prenotazione(codice, …)` e `annulla_prenotazione(codice)`, con controlli lato database
 - [ ] Email agli sposi anche su modifica e annullamento ("Famiglia Esposito: da 4 a 3 persone")
-- [ ] Codice più lungo per chi modifica (8 caratteri) *(da decidere: oggi sono 6, circa 900 milioni di combinazioni)*
+- [ ] Con il link personale non serve il codice; il codice `AR-XXXXXX` resta per chi ha confermato dal link generico
 
 ### Fase 5 — Impostazioni modificabili
 - [ ] `matrimoni.config` con lo stesso formato di `config.ts` + `sala.ts`, validato
@@ -117,6 +131,7 @@ Migrazione `03`, invisibile agli invitati.
 - [ ] Prova completa da 2–3 telefoni diversi
 
 ### Dopo il matrimonio — verso la piattaforma
+- Pulsante "confermo di nuovo" per gli invitati (seconda conferma in autonomia)
 - Registrazione sposi in autonomia, un `slug` per matrimonio (`/antonio-e-rosa`)
 - Template grafici (il `config` diventa per template)
 - Editor della sala e dei tavoli
@@ -125,10 +140,19 @@ Migrazione `03`, invisibile agli invitati.
 
 ---
 
+## Decisioni prese
+
+| Tema | Decisione |
+|---|---|
+| Login sposi | Email + password, più "Accedi con Google" |
+| Invitati aggiungono persone | Sì, entro `max_persone` del loro invito (link generico: fino a 12, da verificare) |
+| Scadenza modifiche invitati | **10 giorni prima** del matrimonio; dopo, modificano solo gli sposi |
+| Annullamento | Non cancella: la prenotazione resta con stato `annullata` e si può ripristinare |
+| Seconda conferma | La segnano gli sposi dopo la telefonata. Pulsante "confermo di nuovo" per gli invitati: dopo, non prioritario |
+| Link inoltrati | **Da confermare:** link personali per famiglia + link generico con stato "da verificare" |
+
 ## Domande aperte
 
-1. **Login**: email + password, o "link magico" via email senza password? *(proposta: password, più immediato da telefono)*
-2. **Invitati che aggiungono persone** dopo la conferma: consentito, o solo ridurre/annullare?
-3. **Scadenza modifiche** per gli invitati: quanti giorni prima?
-4. **Annullamento**: si conserva la riga come "annullata" (proposta) o si cancella?
-5. **Seconda conferma**: vi basta segnarla voi dopo la telefonata, o in futuro volete mandare agli invitati un link "confermate di nuovo"?
+1. Confermate i **link personali** (serve caricare la lista invitati nell'area sposi)?
+2. Chi apre un link personale vede il **nome della famiglia** già scritto ("Ciao Famiglia Esposito")? *(proposta: sì, con il nome modificabile)*
+3. Lista invitati: la inserite a mano nell'area sposi o la importate da un foglio Google/Excel? *(proposta: entrambe, import CSV)*
