@@ -12,7 +12,7 @@ export interface ConfigMatrimonio {
   luogo: { nome: string; indirizzo: string; citta: string; lat: number; lng: number };
   iban: string;
   iban_di_esempio: boolean;
-  testi: { occhiello: string; claim: string; nota_pagamento: string; nota_contanti: string };
+  testi: { occhiello: string; claim: string; nota_gioco: string; nota_pagamento: string; nota_contanti: string };
   settori: Record<SettoreId, { nome: string; tag: string; prezzo: number; desc: string }>;
   supplementi: { id: string; n: string; d: string; p: number }[];
   sconto_famiglia: number;
@@ -80,6 +80,7 @@ export function unisci(grezzo: unknown): ConfigMatrimonio {
     testi: {
       occhiello: testo(te.occhiello, d.testi.occhiello, 60),
       claim: testo(te.claim, d.testi.claim, 200),
+      nota_gioco: testo(te.nota_gioco, d.testi.nota_gioco, 300),
       nota_pagamento: testo(te.nota_pagamento, d.testi.nota_pagamento, 400),
       nota_contanti: testo(te.nota_contanti, d.testi.nota_contanti, 600),
     },

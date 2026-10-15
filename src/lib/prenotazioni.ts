@@ -157,6 +157,27 @@ export async function annullaPrenotazione(codice: string): Promise<void> {
   if (error) throw error.message.includes("modifiche_chiuse") ? new ModificheChiuse() : error;
 }
 
+/** "Purtroppo non possiamo venire" dal link personale: resta una prenotazione annullata, senza posti. */
+export async function declinaInvito(token: string, nome: string, nota: string): Promise<PrenotazioneSalvata> {
+  const base = { nome, ospiti: [], contatto: "", note: nota.trim(), posti: [], supplementi: [], totale: 0, invito: token, stato: "annullata" as const };
+  if (!supabase) {
+    await new Promise((r) => setTimeout(r, 500));
+    const tutte = leggiDemo();
+    const gia = tutte.find((x) => x.invito === token);
+    if (gia && gia.stato !== "annullata") throw new InvitoGiaConfermato();
+    const salvata: PrenotazioneSalvata = gia ? { ...gia, note: base.note || gia.note } : { ...base, id: "demo-" + Date.now(), codice: codiceDemo(), creataIl: new Date().toISOString() };
+    localStorage.setItem(CHIAVE_DEMO, JSON.stringify([...tutte.filter((x) => x !== gia), salvata]));
+    return salvata;
+  }
+  const { data, error } = await supabase.rpc("declina_invito", { p_token: token, p_nota: nota.trim() || null });
+  if (error) {
+    if (error.message.includes("invito_gia_confermato")) throw new InvitoGiaConfermato();
+    throw error;
+  }
+  const r = data as { id: string; codice: string };
+  return { ...base, id: r.id, codice: r.codice, creataIl: new Date().toISOString() };
+}
+
 export class InvitoGiaConfermato extends Error {
   constructor() {
     super("invito_gia_confermato");

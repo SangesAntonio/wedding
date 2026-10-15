@@ -31,6 +31,7 @@ export let TESTI = {
   occhiello: "Unica replica",
   claim: "Acquistate il vostro biglietto per l'evento che difficilmente ricorderete.",
   nota_pagamento: "Poi, tra noi: potete pagare quello che volete. Anche zero. Dopotutto vi vogliamo ancora bene.",
+  nota_gioco: "Biglietti, posti e prezzi sono per gioco: i tavoli veri li facciamo noi e la busta è libera, come sempre.",
   nota_contanti:
     "Se preferite il contante, la busta si consegna all'ingresso come vuole la tradizione. Il biglietto non dà diritto a rimborso, ma dà diritto a due primi, un secondo, il dolce e almeno un ballo lento.",
 };

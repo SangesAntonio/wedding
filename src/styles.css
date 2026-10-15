@@ -456,3 +456,51 @@ button:focus:not(:focus-visible){outline:none}
 .timbro-annullato{background:#8B8B85}
 .banda-modifica{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 14px; padding:10px 14px; border-radius:14px; background:#F8F0DC; border:1px solid #E7D8AE; color:#6E5A22; font-size:12.5px}
 .banda-modifica .link{color:#6E5A22; flex:none}
+
+/* ================================================= risposta in tre passi */
+.nota-gioco{font-size:12px; line-height:1.55; color:var(--soft); font-style:italic; max-width:40ch; margin:16px 0 0}
+.risposta{text-align:center; padding:22px 18px}
+.risposta .t{font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:500; margin:0}
+.risposta .d{font-size:13px; color:var(--soft); line-height:1.55; margin:4px auto 0; max-width:36ch}
+.risposta-azioni{display:grid; grid-template-columns:1fr; gap:8px; margin-top:16px}
+.risposta-azioni:has(> :nth-child(2)){grid-template-columns:1fr 1fr}
+.risposta-no{text-align:left}
+.risposta-no .etichetta.blocco{margin-top:16px}
+.risposta-codice{display:block; margin:14px auto 0}
+.ritrova-piede{display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; margin-top:10px}
+.ritrova-piede .link{padding:0}
+
+.ospiti-testa{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 0 10px; border-bottom:1px solid var(--linea)}
+.ospiti-testa .t{font-size:14px; font-weight:500}
+.stepper button:disabled{opacity:.3; cursor:default}
+.ospite-riga{grid-template-columns:20px 1fr auto 30px}
+.ospite-num{font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--oro); text-align:center}
+.ospite-togli{width:30px; height:30px; border-radius:50%; border:none; background:transparent; color:#B4AD99; display:flex; align-items:center; justify-content:center; cursor:pointer}
+.ospite-togli:hover{background:#F1EDE0; color:var(--ink)}
+
+.facoltativi{display:flex; flex-direction:column; align-items:flex-start; gap:2px; margin:14px 0}
+.facoltativi > div{width:100%}
+.aggiungi{display:inline-flex; align-items:center; gap:7px; border:none; background:none; padding:8px 0; font-size:13.5px; color:var(--bosco); cursor:pointer}
+.aggiungi:hover{text-decoration:underline}
+
+.tavolo{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:linear-gradient(135deg,#FFFDF7,#F4F1E6)}
+.tavolo-tx{flex:1; min-width:180px}
+.tavolo .valore{font-family:'Cormorant Garamond',serif; font-size:21px; margin-top:4px}
+.tavolo .d{font-size:12px; color:var(--soft); margin:2px 0 0}
+.tavolo .btn{flex:none; height:44px}
+
+.fatto{display:flex; align-items:center; gap:14px; border-color:#CFDCC9; background:linear-gradient(135deg,#FFFDF7,#F2F6EE)}
+.fatto .pastiglia{width:40px; height:40px}
+.fatto .t{font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:500; margin:0; line-height:1.1}
+.fatto .d{font-size:13px; color:var(--soft); margin:4px 0 0; line-height:1.5}
+.dopo-conferma{margin:0 0 12px}
+.da-ricordare ul{margin:10px 0 0; padding:0 0 0 18px; display:flex; flex-direction:column; gap:10px; font-size:13.5px; line-height:1.55}
+.da-ricordare li::marker{color:var(--oro)}
+.da-ricordare .bottoncino{display:inline-flex; align-items:center; gap:5px; padding:4px 9px; vertical-align:1px}
+.codice-inline{font-family:ui-monospace,'SF Mono',Menlo,monospace; letter-spacing:.08em}
+.modifiche-sola{margin-top:0}
+
+/* sala a tutto schermo, aperta solo da chi vuole scegliere */
+.sala-scena{position:fixed; inset:0; z-index:35; overflow-y:auto; overscroll-behavior:contain; animation:entra .3s ease both;
+  padding:calc(16px + env(safe-area-inset-top)) 0 calc(110px + env(safe-area-inset-bottom));
+  background:radial-gradient(1100px 520px at 50% -10%, #FBF7EC 0%, rgba(251,247,236,0) 60%), var(--avorio)}

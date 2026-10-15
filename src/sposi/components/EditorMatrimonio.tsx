@@ -58,7 +58,7 @@ const schema = z.object({
   }),
   iban: testo(40),
   iban_di_esempio: z.boolean(),
-  testi: z.object({ occhiello: testo(60), claim: testo(200), nota_pagamento: testo(400), nota_contanti: testo(600) }),
+  testi: z.object({ occhiello: testo(60), claim: testo(200), nota_gioco: testo(300), nota_pagamento: testo(400), nota_contanti: testo(600) }),
   settori: z.object(Object.fromEntries(ORDINE_SETTORI.map((k) => [k, settore])) as Record<SettoreId, typeof settore>),
   supplementi: z.array(z.object({ id: z.string(), n: testo(80), d: z.string().max(120), p: z.number({ message: "Numero" }).min(0).max(10000) })).max(12),
   sconto_pct: z.number({ message: "Numero" }).min(0).max(90),
@@ -249,6 +249,9 @@ function Modulo({ config }: { config: ConfigMatrimonio }) {
           </Campo>
           <Campo etichetta="Frase principale" errore={e.testi?.claim?.message}>
             <Textarea rows={2} {...register("testi.claim")} />
+          </Campo>
+          <Campo etichetta="È tutto per gioco" errore={e.testi?.nota_gioco?.message} aiuto="Sotto i prezzi: tranquillizza chi pensa che biglietti e posti siano veri">
+            <Textarea rows={2} {...register("testi.nota_gioco")} />
           </Campo>
           <Campo etichetta="Nota sul pagamento" errore={e.testi?.nota_pagamento?.message} aiuto="Il riquadro dorato sotto l'importo">
             <Textarea rows={2} {...register("testi.nota_pagamento")} />

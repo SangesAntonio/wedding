@@ -234,5 +234,25 @@ export function trovaPostiVicini(occupati: Occupati, quanti: number) {
   return migliore as { tavolo: Tavolo; punteggio: number; posti: Posto[] } | null;
 }
 
-export const liberiAlTavolo = (cod: string, occupati: Occupati) =>
+/**
+ * Posti per `quanti` persone scelti in automatico: tutti allo stesso tavolo se possibile,
+ * altrimenti divisi sul minor numero di tavoli. null se la sala non ne ha abbastanza.
+ */
+export function postiAutomatici(occupati: Occupati, quanti: number): Posto[] | null {
+  if (quanti <= 0) return [];
+  const presi: Occupati = new Map(occupati);
+  const scelti: Posto[] = [];
+  let resto = quanti;
+  while (resto > 0) {
+    let r: ReturnType<typeof trovaPostiVicini> = null;
+    for (let k = Math.min(resto, SEDIE_PER_TAVOLO); k > 0 && !r; k--) r = trovaPostiVicini(presi, k);
+    if (!r) return null;
+    r.posti.forEach((p) => presi.set(p.id, ""));
+    scelti.push(...r.posti);
+    resto -= r.posti.length;
+  }
+  return scelti;
+}
+
+export const liberiAlTavolo =(cod: string, occupati: Occupati) =>
   POSTI.filter((p) => p.tav === cod && !p.sposo && !occupati.has(p.id)).length;

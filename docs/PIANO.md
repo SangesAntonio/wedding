@@ -156,7 +156,9 @@ Tutto dentro il pannello di dettaglio della tabella.
 
 ### Fase F — Rifiniture e lancio *(ex Fase 6)*
 - [x] WhatsApp da computer: apertura diretta di WhatsApp Web (stessa scheda) o dell'app, scelta nelle Impostazioni
-- [ ] Immagine di anteprima per WhatsApp · IBAN vero · dominio vostro (+ URL in Supabase Auth)
+- [x] Immagine di anteprima per WhatsApp
+- [x] **Risposta più semplice** (migrazione 08): tre passi *Invito → Chi viene → Biglietto*; "Ci sarete?" con *Sì* / *Purtroppo no* (dal link personale, con un messaggio facoltativo); posti assegnati in automatico e sala 3D solo per chi vuole sceglierli; allergie e recapito facoltativi e chiusi; IBAN e "da ricordare" solo dopo la conferma; nota "è tutto per gioco" modificabile nelle Impostazioni
+- [ ] IBAN vero · dominio vostro (+ URL in Supabase Auth)
 - [ ] Test automatici dei percorsi principali (Playwright): conferma da link personale, link generico, login sposi, import Excel
 - [ ] *(facoltativo)* Email di conferma all'invitato con il codice (serve un dominio verificato su Resend)
 - [ ] Prova completa da 2–3 telefoni diversi

@@ -1,6 +1,6 @@
 // Edge Function di Supabase: riceve i "Database Webhook" su `prenotazioni` e manda un'email agli sposi
 // tramite Resend (https://resend.com, piano gratuito).
-//   INSERT  → nuova conferma
+//   INSERT  → nuova conferma (o "non possiamo venire" dal link personale)
 //   UPDATE  → solo se a modificare è stato l'invitato: modifica, annullamento, ripensamento
 //
 // Segreti da impostare (Supabase → Edge Functions → Secrets):
@@ -63,6 +63,14 @@ function dettagli(p: Riga): [string, string][] {
 }
 
 function componi(tipo: string, p: Riga, o?: Riga): { oggetto: string; html: string } | null {
+  if (tipo === "INSERT" && p.stato === "annullata")
+    return {
+      oggetto: `[Non viene] ${p.nome}`,
+      html: corpo("Purtroppo non vengono", `${p.nome} ha risposto che non può venire.`, [
+        ["Messaggio", p.note || "—"],
+        ["Codice", p.codice],
+      ]),
+    };
   if (tipo === "INSERT") {
     const daVerificare = p.stato === "da_verificare";
     return {

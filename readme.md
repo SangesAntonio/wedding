@@ -30,7 +30,7 @@ Quando l'IBAN è quello vero mettete `IBAN_DI_ESEMPIO = false`.
 
 1. Create un account su https://supabase.com e un nuovo progetto (regione: Frankfurt/EU).
 2. **SQL Editor → New query**: incollate tutto [supabase/schema.sql](supabase/schema.sql) e premete **Run**.
-   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql), [05](supabase/migrazione-05-data.sql), [06](supabase/migrazione-06-ospiti.sql), [07](supabase/migrazione-07-modifiche-invitati.sql).
+   Poi, nell'ordine, le migrazioni successive: [03](supabase/migrazione-03-area-sposi.sql), [04](supabase/migrazione-04-inviti.sql), [05](supabase/migrazione-05-data.sql), [06](supabase/migrazione-06-ospiti.sql), [07](supabase/migrazione-07-modifiche-invitati.sql), [08](supabase/migrazione-08-risposta-no.sql).
    Se il database era stato creato con la primissima versione, prima della 03 eseguite [migrazione-02-codice.sql](supabase/migrazione-02-codice.sql).
 3. **Project Settings → API**: copiate *Project URL* e la chiave *anon public*.
 4. Copiate `.env.example` in `.env` e incollate i due valori. Riavviate `npm run dev`.

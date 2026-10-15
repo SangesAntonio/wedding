@@ -181,7 +181,12 @@ function Contenuto({ f }: { f: Famiglia }) {
       {/* dettagli prenotazione */}
       {p && (
         <Sezione titolo="Prenotazione">
-          {p.note && (
+          {p.note && !p.posti.length && (
+            <p className="mb-2 rounded-lg bg-muted px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Ha risposto di no e vi ha scritto:</span> «{p.note}»
+            </p>
+          )}
+          {p.note && p.posti.length > 0 && (
             <p className="mb-2 flex gap-2 rounded-lg bg-warn-bg px-3 py-2 text-sm text-warn">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {p.note}
             </p>
@@ -369,7 +374,7 @@ function Piede({ f }: { f: Famiglia }) {
           <UserX /> Annulla presenza
         </Button>
       )}
-      {p?.stato === "annullata" && (
+      {p?.stato === "annullata" && p.posti.length > 0 && (
         <Button variant="outline" onClick={() => az.ripristina(p)}>
           <RotateCcw /> Ripristina prenotazione
         </Button>
